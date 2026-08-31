@@ -19,11 +19,10 @@ const NAV = [
   { id: 'stores',    icon: '🏪', label: 'Stores'     },
   { id: 'inventory', icon: '🗄️',  label: 'Inventory'  },
   { id: 'add-stock', icon: '📥', label: 'Add Stock'  },
-  { id: 'billing',   icon: '🧾', label: 'Billing'    },
   { id: 'analytics', icon: '📈', label: 'Analytics'  },
   { id: 'issues',    icon: '⚠️',  label: 'Issues'     },
+  { id: 'requests',  icon: '📋', label: 'Store Requests' },
   { id: 'staff',     icon: '👥', label: 'Staff'      },
-  { id: 'settings',  icon: '⚙️',  label: 'Settings'  },
 ];
 
 export default function AdminDashboard() {
@@ -212,7 +211,7 @@ export default function AdminDashboard() {
                       { label: '🏪  Add Store',   action: () => setActive('stores')     },
                       { label: '📥  Add Stock',   action: () => setActive('add-stock')  },
                       { label: '🗄️  Inventory',   action: () => setActive('inventory')  },
-                      { label: '⏳  Approvals',   action: () => setActive('stores')     },
+                      { label: '📋  Requests',    action: () => setActive('requests')   },
                     ].map((a, i) => (
                       <button key={i} onClick={a.action}
                         style={{ background: 'var(--bg-3)', border: '1px solid var(--bg-4)', color: 'var(--label-2)', padding: '9px 18px', borderRadius: 10, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, boxShadow: 'var(--shadow-sm)' }}>
@@ -263,6 +262,12 @@ export default function AdminDashboard() {
             {active === 'issues' && (
               <motion.div key="issues" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                 <IssueResolution />
+              </motion.div>
+            )}
+
+            {/* Store Requests */}
+            {active === 'requests' && (
+              <motion.div key="requests" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                 <AdminInventoryRequests adminEmail={session?.email} />
               </motion.div>
             )}
@@ -275,7 +280,7 @@ export default function AdminDashboard() {
             )}
 
             {/* Coming soon */}
-            {!['dashboard', 'stores', 'store-detail', 'inventory', 'add-stock', 'analytics', 'issues', 'staff'].includes(active) && (
+            {!['dashboard', 'stores', 'store-detail', 'inventory', 'add-stock', 'analytics', 'issues', 'requests', 'staff'].includes(active) && (
               <motion.div key={active} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                 style={{ padding: '80px 28px', textAlign: 'center' }}>
                 <div style={{ fontSize: 52, marginBottom: 14, opacity: 0.3 }}>{NAV.find(n => n.id === active)?.icon}</div>
