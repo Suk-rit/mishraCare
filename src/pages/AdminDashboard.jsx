@@ -263,6 +263,7 @@ export default function AdminDashboard() {
             {active === 'issues' && (
               <motion.div key="issues" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                 <IssueResolution />
+                <AdminInventoryRequests adminEmail={session?.email} />
               </motion.div>
             )}
 
@@ -516,6 +517,193 @@ function AdminStaffTab({ adminEmail }) {
                   background:sc.bg, color:sc.color, flexShrink:0, textTransform:'capitalize' }}>
                   {m.status}
                 </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── AdminInventoryRequests — admin sees stock requests from store managers ────
+const STATUS_META = {
+  pending:   { bg:'#FEF3C7', color:'#92400E', border:'#FDE68A', label:'Pending ⏳'   },
+  approved:  { bg:'#DCFCE7', color:'#15803D', border:'#BBF7D0', label:'Approved ✓'   },
+  rejected:  { bg:'#FEE2E2', color:'#B91C1C', border:'#FECACA', label:'Rejected ✕'   },
+  fulfilled: { bg:'#EFF6FF', color:'#1D4ED8', border:'#BFDBFE', label:'Fulfilled 📦' },
+};
+
+function AdminInventoryRequests({ adminEmail }) {
+  const [requests,   setRequests]   = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [adminId,    setAdminId]    = useState(null);
+  const [filter,     setFilter]     = useState('pending');
+  const [responding, setResponding] = useState(null); // request id
+  const [note,       setNote]       = useState('');
+  const [saving,     setSaving]     = useState(false);
+
+  useEffect(() => {
+    if (!adminEmail) return;
+    supabase.from('admins').select('id').eq('email', adminEmail).single()
+      .then(({ data }) => { if (data?.id) { setAdminId(data.id); fetchRequests(data.id); } });
+  }, [adminEmail]);
+
+  const fetchRequests = async (id) => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('inventory_requests')
+      .select('*, stores(store_name, city)')
+      .eq('admin_id', id)
+      .order('created_at', { ascending: false });
+    setRequests(data || []);
+    setLoading(false);
+  };
+
+  const handleRespond = async (req, status) => {
+    setSaving(true);
+    try {
+      await supabase.from('inventory_requests').update({
+        status,
+        admin_note:   note.trim() || null,
+        responded_at: new Date().toISOString(),
+      }).eq('id', req.id);
+      setResponding(null); setNote('');
+      fetchRequests(adminId);
+    } catch (ex) { alert('Error: ' + ex.message); }
+    finally { setSaving(false); }
+  };
+
+  const filtered = requests.filter(r => filter === 'all' ? true : r.status === filter);
+  const pendingCount = requests.filter(r => r.status === 'pending').length;
+
+  return (
+    <div style={{ padding:'24px 28px', maxWidth:900, margin:'0 auto',
+      fontFamily:"'Inter',-apple-system,sans-serif", marginTop:8 }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
+        marginBottom:16, flexWrap:'wrap', gap:10 }}>
+        <div>
+          <div style={{ fontSize:18, fontWeight:700, color:'var(--label)', marginBottom:3 }}>
+            📋 Stock Requests from Stores
+            {pendingCount > 0 && (
+              <span style={{ marginLeft:8, fontSize:12, fontWeight:700, background:'#FF3B30',
+                color:'#fff', padding:'2px 9px', borderRadius:20 }}>{pendingCount}</span>
+            )}
+          </div>
+          <div style={{ fontSize:12, color:'var(--label-4)' }}>
+            Requests from store managers for medicine from your inventory or new medicines
+          </div>
+        </div>
+        <button onClick={() => fetchRequests(adminId)}
+          style={{ background:'var(--bg-2)', border:'1px solid var(--bg-4)', color:'var(--label-3)',
+            borderRadius:9, padding:'7px 14px', fontSize:12, fontWeight:600,
+            cursor:'pointer', fontFamily:'inherit' }}>↺ Refresh</button>
+      </div>
+
+      <div style={{ display:'flex', gap:5, marginBottom:14, flexWrap:'wrap' }}>
+        {['pending','approved','rejected','fulfilled','all'].map(f => (
+          <button key={f} onClick={() => setFilter(f)}
+            style={{ padding:'6px 14px', borderRadius:20, border:'1.5px solid',
+              borderColor: filter===f ? 'var(--accent)' : 'var(--bg-4)',
+              background:  filter===f ? 'var(--accent-bg)' : 'var(--bg-2)',
+              color:       filter===f ? 'var(--accent)' : 'var(--label-4)',
+              fontSize:11, fontWeight:600, cursor:'pointer', fontFamily:'inherit',
+              textTransform:'capitalize' }}>
+            {f} ({filter===f ? filtered.length : requests.filter(r => f==='all' ? true : r.status===f).length})
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign:'center', padding:30, color:'var(--label-4)', fontSize:13 }}>Loading…</div>
+      ) : filtered.length === 0 ? (
+        <div style={{ textAlign:'center', padding:'28px 20px', background:'var(--bg-2)',
+          borderRadius:12, border:'1px solid var(--bg-4)', color:'var(--label-4)', fontSize:13 }}>
+          No {filter !== 'all' ? filter : ''} requests
+        </div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:9 }}>
+          {filtered.map(req => {
+            const sm = STATUS_META[req.status] || STATUS_META.pending;
+            const isResp = responding === req.id;
+            return (
+              <div key={req.id} style={{ background:'var(--bg-2)', border:`1px solid ${sm.border}`,
+                borderRadius:12, overflow:'hidden', boxShadow:'var(--shadow-sm)' }}>
+                <div style={{ padding:'12px 16px', display:'flex', alignItems:'flex-start', gap:12 }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', marginBottom:3 }}>
+                      <span style={{ fontSize:14, fontWeight:700, color:'var(--label)' }}>
+                        {req.medicine_name || '—'}
+                      </span>
+                      <span style={{ fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:20,
+                        background: req.request_type==='new' ? '#FAF0FF' : '#EFF6FF',
+                        color: req.request_type==='new' ? '#6B21A8' : '#1D4ED8' }}>
+                        {req.request_type==='new' ? '🆕 New' : '📦 Stock'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize:11, color:'var(--label-4)', display:'flex', gap:8, flexWrap:'wrap' }}>
+                      <span>Store: <strong>{req.stores?.store_name}</strong> · {req.stores?.city}</span>
+                      <span>{req.quantity_units} units</span>
+                      {req.batch_number && <span>Batch: {req.batch_number}</span>}
+                      <span>{new Date(req.created_at).toLocaleDateString('en-IN')}</span>
+                    </div>
+                    {req.notes && (
+                      <div style={{ marginTop:4, fontSize:12, color:'var(--label-3)', fontStyle:'italic' }}>
+                        "{req.notes}"
+                      </div>
+                    )}
+                    {req.admin_note && (
+                      <div style={{ marginTop:5, fontSize:11, padding:'4px 8px', background:'#F0FDF4',
+                        border:'1px solid #BBF7D0', borderRadius:6, color:'#15803D' }}>
+                        Your response: {req.admin_note}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:5, flexShrink:0, alignItems:'flex-end' }}>
+                    <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:20,
+                      background:sm.bg, color:sm.color, border:`1px solid ${sm.border}` }}>
+                      {sm.label}
+                    </span>
+                    {req.status === 'pending' && !isResp && (
+                      <button onClick={() => { setResponding(req.id); setNote(''); }}
+                        style={{ padding:'5px 12px', background:'var(--accent-bg)',
+                          color:'var(--accent)', border:'1px solid rgba(255,59,48,0.2)',
+                          borderRadius:7, fontSize:11, fontWeight:600,
+                          cursor:'pointer', fontFamily:'inherit' }}>
+                        Respond
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {isResp && (
+                  <div style={{ padding:'12px 16px', background:'var(--bg-3)',
+                    borderTop:'1px solid var(--bg-4)' }}>
+                    <input value={note} onChange={e => setNote(e.target.value)}
+                      placeholder="Add a note for the manager (optional)…"
+                      style={{ width:'100%', padding:'8px 12px', fontSize:12,
+                        border:'1.5px solid var(--bg-4)', borderRadius:8, background:'var(--bg-2)',
+                        color:'var(--label)', fontFamily:'inherit', outline:'none',
+                        boxSizing:'border-box', marginBottom:8 }} />
+                    <div style={{ display:'flex', gap:7 }}>
+                      <button onClick={() => setResponding(null)}
+                        style={{ padding:'6px 14px', background:'var(--bg-3)', border:'1px solid var(--bg-4)',
+                          color:'var(--label-3)', borderRadius:7, fontSize:11, fontWeight:600,
+                          cursor:'pointer', fontFamily:'inherit' }}>Cancel</button>
+                      <button onClick={() => handleRespond(req, 'approved')} disabled={saving}
+                        style={{ padding:'6px 16px', background:'#34C759', color:'#fff',
+                          border:'none', borderRadius:7, fontSize:11, fontWeight:700,
+                          cursor:'pointer', fontFamily:'inherit' }}>✓ Approve</button>
+                      <button onClick={() => handleRespond(req, 'rejected')} disabled={saving}
+                        style={{ padding:'6px 16px', background:'#FF3B30', color:'#fff',
+                          border:'none', borderRadius:7, fontSize:11, fontWeight:700,
+                          cursor:'pointer', fontFamily:'inherit' }}>✕ Reject</button>
+                      <button onClick={() => handleRespond(req, 'fulfilled')} disabled={saving}
+                        style={{ padding:'6px 16px', background:'#007AFF', color:'#fff',
+                          border:'none', borderRadius:7, fontSize:11, fontWeight:700,
+                          cursor:'pointer', fontFamily:'inherit' }}>📦 Fulfilled</button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

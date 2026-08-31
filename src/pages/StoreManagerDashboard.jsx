@@ -7,6 +7,7 @@ import AddEmployeeModal from '../components/AddEmployeeModal';
 import StoreTransfers   from './StoreTransfers';
 import BillingPage      from './BillingPage';
 import StoreAnalytics   from './StoreAnalytics';
+import InventoryRequestTab from './InventoryRequestTab';
 import RefreshButton    from '../components/RefreshButton';
 import '../styles/login.css';
 import '../styles/stores.css';
@@ -124,6 +125,7 @@ export default function StoreManagerDashboard() {
                 { id: 'billing',    label: '🧾 Billing',                                                                alert: false },
                 { id: 'analytics',  label: '📈 Analytics',                                                              alert: false },
                 { id: 'transfers',  label: '📦 Transfers',  badge: pendingTransfers,                                    alert: pendingTransfers > 0 },
+                { id: 'request',    label: '📋 Request Stock',                                                              alert: false },
                 { id: 'stock',      label: '🏪 My Stock',                                                               alert: false },
                 { id: 'employees',  label: `👥 My Team (${employees.filter(e=>e.status==='approved').length})`,          alert: false },
                 { id: 'pending',    label: `⏳ Pending (${employees.filter(e=>e.status==='pending').length})`,           alert: employees.filter(e=>e.status==='pending').length > 0 },
@@ -280,6 +282,19 @@ export default function StoreManagerDashboard() {
                   )}
                   {/* Show issue resolutions for this store */}
                   {storeData && <StoreIssueStatus storeId={storeData.id} />}
+                </motion.div>
+              )}
+
+              {/* STOCK TAB */}
+              {tab === 'request' && (
+                <motion.div key="req" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                  {managerData && storeData && (
+                    <InventoryRequestTab
+                      storeId={storeData.id}
+                      managerId={managerData.id}
+                      adminId={storeData.admin_id}
+                    />
+                  )}
                 </motion.div>
               )}
 

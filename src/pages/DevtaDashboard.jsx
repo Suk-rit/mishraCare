@@ -13,6 +13,7 @@ const NAV = [
   { id: 'approved',  icon: '✓',  label: 'Approved Bills'    },
   { id: 'employees', icon: '👥', label: 'People Requests'   },
   { id: 'stores',    icon: '🏪', label: 'Add Store'         },
+  { id: 'expenses',  icon: '💸', label: 'My Expenses'       },
 ];
 
 function chip(bg, color, border = bg) {
@@ -622,6 +623,62 @@ export default function DevtaDashboard() {
     setTimeout(() => setBanner(null), 7000);
   };
 
+  // ── Devta own expenses ────────────────────────────────────────────────────
+  const [devtaExpenses,    setDevtaExpenses]    = useState([]);
+  const [expLoading2,      setExpLoading2]      = useState(false);
+  const [showExpenseForm,  setShowExpenseForm]  = useState(false);
+  const [expForm,          setExpForm]          = useState({
+    category:'miscellaneous', description:'', amount:'',
+    expense_date: new Date().toISOString().split('T')[0],
+    payment_method:'cash', notes:'',
+  });
+  const [expProof, setExpProof]     = useState(null);
+  const [expSaving, setExpSaving]   = useState(false);
+
+  const fetchDevtaExpenses = useCallback(async () => {
+    if (!devtaId) return;
+    setExpLoading2(true);
+    const { data } = await supabase.from('devta_expenses')
+      .select('*').eq('devta_id', devtaId)
+      .order('expense_date', { ascending: false }).limit(50);
+    setDevtaExpenses(data || []);
+    setExpLoading2(false);
+  }, [devtaId]);
+
+  useEffect(() => { if (active === 'expenses' && devtaId) fetchDevtaExpenses(); }, [active, devtaId]);
+
+  const handleAddDevtaExpense = async () => {
+    if (!expForm.description.trim()) { showBannerMsg('⚠️ Description required'); return; }
+    if (!expForm.amount || parseFloat(expForm.amount) <= 0) { showBannerMsg('⚠️ Enter valid amount'); return; }
+    setExpSaving(true);
+    try {
+      let proofUrl = null;
+      if (expProof) {
+        const { uploadFile } = await import('../utils/storage');
+        proofUrl = await uploadFile('devta-expense-proofs', expProof, 'devta');
+      }
+      const { error } = await supabase.from('devta_expenses').insert({
+        devta_id:       devtaId,
+        category:       expForm.category,
+        description:    expForm.description.trim(),
+        amount:         parseFloat(expForm.amount),
+        expense_date:   expForm.expense_date,
+        payment_method: expForm.payment_method,
+        proof_url:      proofUrl,
+        notes:          expForm.notes.trim() || null,
+      });
+      if (error) throw new Error(error.message);
+      setShowExpenseForm(false);
+      setExpForm({ category:'miscellaneous', description:'', amount:'',
+        expense_date: new Date().toISOString().split('T')[0],
+        payment_method:'cash', notes:'' });
+      setExpProof(null);
+      fetchDevtaExpenses();
+      showBannerMsg('✓ Expense recorded!');
+    } catch (ex) { showBannerMsg('⛔ ' + ex.message); }
+    finally { setExpSaving(false); }
+  };
+
   // ── People Requests (employees + admin team) ──────────────────────────────
   const fetchPeopleRequests = useCallback(async () => {
     setEmpLoading(true);
@@ -1149,6 +1206,187 @@ export default function DevtaDashboard() {
                       The admin will be notified automatically.
                     </div>
                   </div>
+                </motion.div>
+              )}
+
+              {/* ── Devta Expenses tab ── */}
+              {active === 'expenses' && (
+                <motion.div key="expenses"
+                  initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
+                    marginBottom:20, flexWrap:'wrap', gap:10 }}>
+                    <div>
+                      <div style={{ fontSize:22, fontWeight:800, color:'#01579B', letterSpacing:'-0.3px', marginBottom:2 }}>
+                        💸 My Expenses
+                      </div>
+                      <div style={{ fontSize:13, color:'#4FC3F7' }}>
+                        Record your operational expenses — visible to Vishnu
+                      </div>
+                    </div>
+                    <button onClick={() => setShowExpenseForm(v => !v)}
+                      style={{ padding:'9px 20px', background:'linear-gradient(135deg,#0288D1,#01579B)',
+                        color:'#fff', border:'none', borderRadius:11, fontSize:13, fontWeight:700,
+                        cursor:'pointer', fontFamily:'inherit', boxShadow:'0 3px 12px rgba(2,136,209,0.3)' }}>
+                      + Add Expense
+                    </button>
+                  </div>
+
+                  {/* Add expense form */}
+                  <AnimatePresence>
+                    {showExpenseForm && (
+                      <motion.div initial={{ opacity:0, y:-8 }} animate={{ opacity:1, y:0 }}
+                        exit={{ opacity:0, y:-8 }}
+                        style={{ background:'#fff', border:'1.5px solid #B3E5FC', borderRadius:14,
+                          padding:'20px 22px', marginBottom:18, boxShadow:'0 4px 16px rgba(2,136,209,0.1)' }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', marginBottom:14 }}>
+                          <div style={{ fontSize:14, fontWeight:700, color:'#01579B' }}>New Expense</div>
+                          <button onClick={() => setShowExpenseForm(false)}
+                            style={{ background:'none', border:'none', cursor:'pointer', fontSize:17, color:'#888' }}>✕</button>
+                        </div>
+                        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
+                          {[
+                            { k:'description', label:'Description *', ph:'e.g. Office supplies, travel to admin meet' },
+                            { k:'amount',      label:'Amount (₹) *',  ph:'0.00', type:'number' },
+                            { k:'expense_date',label:'Date',           ph:'', type:'date' },
+                          ].map(f => (
+                            <div key={f.k}>
+                              <label style={{ fontSize:11, fontWeight:600, color:'#0288D1',
+                                display:'block', marginBottom:4 }}>{f.label}</label>
+                              <input type={f.type||'text'} placeholder={f.ph}
+                                value={expForm[f.k]}
+                                onChange={e => setExpForm(p => ({ ...p, [f.k]: e.target.value }))}
+                                style={{ width:'100%', padding:'8px 10px', fontSize:13,
+                                  border:'1.5px solid #B3E5FC', borderRadius:8,
+                                  background:'#F5FBFF', color:'#01579B',
+                                  fontFamily:'inherit', outline:'none', boxSizing:'border-box' }} />
+                            </div>
+                          ))}
+                          <div>
+                            <label style={{ fontSize:11, fontWeight:600, color:'#0288D1',
+                              display:'block', marginBottom:4 }}>Payment Method</label>
+                            <select value={expForm.payment_method}
+                              onChange={e => setExpForm(p => ({ ...p, payment_method: e.target.value }))}
+                              style={{ width:'100%', padding:'8px 10px', fontSize:13,
+                                border:'1.5px solid #B3E5FC', borderRadius:8,
+                                background:'#F5FBFF', color:'#01579B', fontFamily:'inherit', outline:'none' }}>
+                              {['cash','upi','bank_transfer','cheque'].map(m => (
+                                <option key={m} value={m}>{m.replace('_',' ')}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        {/* Proof upload */}
+                        <div style={{ marginBottom:10 }}>
+                          <label style={{ fontSize:11, fontWeight:600, color:'#0288D1',
+                            display:'block', marginBottom:4 }}>Proof / Receipt (optional)</label>
+                          {!expProof ? (
+                            <div onClick={() => document.getElementById('devta-exp-proof').click()}
+                              style={{ border:'2px dashed #B3E5FC', borderRadius:9, padding:'14px',
+                                textAlign:'center', cursor:'pointer', background:'#F5FBFF',
+                                fontSize:12, color:'#4FC3F7' }}>
+                              📎 Click to upload (image or PDF, max 10MB)
+                            </div>
+                          ) : (
+                            <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 12px',
+                              background:'#E1F5FE', borderRadius:9, border:'1px solid #B3E5FC' }}>
+                              <span style={{ fontSize:16 }}>📄</span>
+                              <span style={{ flex:1, fontSize:12, color:'#01579B', fontWeight:600,
+                                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                                {expProof.name}
+                              </span>
+                              <button onClick={() => setExpProof(null)}
+                                style={{ background:'#FEE2E2', color:'#B91C1C', border:'none',
+                                  borderRadius:6, padding:'3px 8px', fontSize:11, cursor:'pointer' }}>
+                                Remove
+                              </button>
+                            </div>
+                          )}
+                          <input id="devta-exp-proof" type="file" accept="image/*,application/pdf"
+                            style={{ display:'none' }}
+                            onChange={e => {
+                              const f = e.target.files[0];
+                              if (f && f.size <= 10*1024*1024) setExpProof(f);
+                              else if (f) alert('Max 10MB');
+                            }} />
+                        </div>
+                        <textarea placeholder="Additional notes (optional)…"
+                          value={expForm.notes}
+                          onChange={e => setExpForm(p => ({ ...p, notes: e.target.value }))}
+                          style={{ width:'100%', minHeight:50, padding:'8px 10px', fontSize:12,
+                            border:'1.5px solid #B3E5FC', borderRadius:8, background:'#F5FBFF',
+                            color:'#01579B', fontFamily:'inherit', outline:'none',
+                            resize:'vertical', boxSizing:'border-box', marginBottom:12 }} />
+                        <div style={{ display:'flex', justifyContent:'flex-end', gap:8 }}>
+                          <button onClick={() => setShowExpenseForm(false)}
+                            style={{ padding:'8px 18px', background:'#E1F5FE', color:'#0288D1',
+                              border:'none', borderRadius:9, fontSize:12, fontWeight:600,
+                              cursor:'pointer', fontFamily:'inherit' }}>Cancel</button>
+                          <button onClick={handleAddDevtaExpense} disabled={expSaving}
+                            style={{ padding:'8px 22px',
+                              background:'linear-gradient(135deg,#0288D1,#01579B)',
+                              color:'#fff', border:'none', borderRadius:9, fontSize:12,
+                              fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                            {expSaving ? '⏳ Saving…' : '✓ Save Expense'}
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Expenses list */}
+                  {expLoading2 ? (
+                    <div style={{ textAlign:'center', padding:40, color:'#4FC3F7', fontSize:14 }}>Loading…</div>
+                  ) : devtaExpenses.length === 0 ? (
+                    <div style={{ textAlign:'center', padding:'50px 20px', background:'#fff',
+                      borderRadius:14, border:'1.5px solid #B3E5FC' }}>
+                      <div style={{ fontSize:40, opacity:0.2, marginBottom:12 }}>💸</div>
+                      <div style={{ fontSize:15, fontWeight:700, color:'#0288D1' }}>No expenses yet</div>
+                      <div style={{ fontSize:12, color:'#4FC3F7', marginTop:4 }}>Click "+ Add Expense" above</div>
+                    </div>
+                  ) : (
+                    <div style={{ display:'flex', flexDirection:'column', gap:9 }}>
+                      {devtaExpenses.map((e, i) => (
+                        <motion.div key={e.id} initial={{ opacity:0, y:6 }} animate={{ opacity:1, y:0 }}
+                          transition={{ delay:i*0.03 }}
+                          style={{ background:'#fff', border:'1.5px solid #B3E5FC', borderRadius:12,
+                            padding:'12px 16px', display:'flex', alignItems:'center', gap:12,
+                            boxShadow:'0 2px 8px rgba(2,136,209,0.06)' }}>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontSize:13, fontWeight:700, color:'#01579B', marginBottom:2 }}>
+                              {e.description}
+                            </div>
+                            <div style={{ fontSize:11, color:'#4FC3F7', display:'flex', gap:8 }}>
+                              <span>{new Date(e.expense_date).toLocaleDateString('en-IN')}</span>
+                              <span style={{ textTransform:'capitalize' }}>· {e.category?.replace(/_/g,' ')}</span>
+                              <span>· {e.payment_method?.replace('_',' ')}</span>
+                            </div>
+                            {e.notes && <div style={{ fontSize:11, color:'#888', marginTop:2, fontStyle:'italic' }}>{e.notes}</div>}
+                          </div>
+                          <div style={{ textAlign:'right', flexShrink:0 }}>
+                            <div style={{ fontSize:15, fontWeight:800, color:'#B91C1C' }}>
+                              ₹{Number(e.amount).toLocaleString('en-IN')}
+                            </div>
+                            {e.proof_url && (
+                              <button onClick={async () => {
+                                const res = await fetch(e.proof_url);
+                                const html_or_blob = e.proof_url.endsWith('.html')
+                                  ? await res.text() : null;
+                                if (html_or_blob) {
+                                  const w = window.open('', '_blank');
+                                  w.document.write(html_or_blob); w.document.close();
+                                } else { window.open(e.proof_url, '_blank'); }
+                              }}
+                                style={{ fontSize:10, color:'#0288D1', fontWeight:600,
+                                  background:'none', border:'none', cursor:'pointer',
+                                  textDecoration:'underline' }}>
+                                📄 Proof
+                              </button>
+                            )}
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
                 </motion.div>
               )}
 

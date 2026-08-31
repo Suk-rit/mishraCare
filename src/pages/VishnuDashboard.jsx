@@ -41,6 +41,7 @@ function VishnuAnalytics({ admins, storesMap, managersMap }) {
       { data: bills },
       { data: storeExp },
       { data: adminExp },
+      { data: devtaExp },
     ] = await Promise.all([
       supabase.from('bills')
         .select('id, store_id, total_amount, cash_amount, card_amount, upi_amount, created_at')
@@ -55,15 +56,20 @@ function VishnuAnalytics({ admins, storesMap, managersMap }) {
         .select('admin_id, amount, category, description, expense_date, proof_url')
         .gte('expense_date', dateStr)
         .lte('expense_date', endStr),
+      supabase.from('devta_expenses')
+        .select('amount, description, expense_date')
+        .gte('expense_date', dateStr)
+        .lte('expense_date', endStr),
     ]);
 
     const allBills    = bills    || [];
     const allStoreExp = storeExp || [];
     const allAdminExp = adminExp || [];
+    const allDevtaExp = devtaExp || [];
 
     // Chain totals
     const totalSales = allBills.reduce((s, b) => s + parseFloat(b.total_amount || 0), 0);
-    const totalExp   = [...allStoreExp, ...allAdminExp].reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+    const totalExp   = [...allStoreExp, ...allAdminExp, ...allDevtaExp].reduce((s, e) => s + parseFloat(e.amount || 0), 0);
     setChainSales(totalSales);
     setChainBills(allBills.length);
     setChainExpenses(totalExp);
@@ -744,6 +750,7 @@ export default function VishnuDashboard() {
             { id:'overview',  label:'🏢 Org Chart'     },
             { id:'analytics', label:'📊 Analytics'     },
             { id:'cash',      label:'💰 Cash Register' },
+            { id:'reports',   label:'📝 Reports'       },
           ].map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               style={{ padding:'9px 20px', borderRadius:10, border:'none',
@@ -979,6 +986,15 @@ export default function VishnuDashboard() {
               )}
             </motion.div>
           )}
+
+          {/* ── Reports tab ── */}
+          {tab === 'reports' && (
+            <motion.div key="reports"
+              initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}>
+              <VishnuReports />
+            </motion.div>
+          )}
+
         </AnimatePresence>
       </div>
 
@@ -1053,6 +1069,223 @@ export default function VishnuDashboard() {
           </div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// ── VishnuReports ────────────────────────────────────────────────────────────
+function VishnuReports() {
+  const [reports,    setReports]   = useState([]);
+  const [loading,    setLoading]   = useState(true);
+  const [showForm,   setShowForm]  = useState(false);
+  const [saving,     setSaving]    = useState(false);
+  const [form, setForm] = useState({
+    title:       '',
+    period_from: '',
+    period_to:   new Date().toISOString().split('T')[0],
+    notes:       '',
+  });
+
+  useEffect(() => { fetchReports(); }, []);
+
+  const fetchReports = async () => {
+    setLoading(true);
+    const { data } = await supabase.from('vishnu_reports')
+      .select('*').order('created_at', { ascending: false });
+    setReports(data || []);
+    setLoading(false);
+  };
+
+  const handleSave = async () => {
+    if (!form.title.trim())   { alert('Title required'); return; }
+    if (!form.period_from)    { alert('Select start date'); return; }
+    if (!form.period_to)      { alert('Select end date'); return; }
+    setSaving(true);
+    try {
+      // Fetch financial snapshot for the period
+      const start = form.period_from + 'T00:00:00';
+      const end   = form.period_to   + 'T23:59:59';
+      const [{ data: bills }, { data: storeExp }, { data: adminExp }, { data: devtaExp }] =
+        await Promise.all([
+          supabase.from('bills').select('total_amount').eq('status','paid').gte('created_at',start).lte('created_at',end),
+          supabase.from('expenses').select('amount').gte('expense_date',form.period_from).lte('expense_date',form.period_to),
+          supabase.from('admin_expenses').select('amount').gte('expense_date',form.period_from).lte('expense_date',form.period_to),
+          supabase.from('devta_expenses').select('amount').gte('expense_date',form.period_from).lte('expense_date',form.period_to),
+        ]);
+
+      const totalSales = (bills||[]).reduce((s,b) => s + parseFloat(b.total_amount||0), 0);
+      const totalExp   = [...(storeExp||[]), ...(adminExp||[]), ...(devtaExp||[])]
+        .reduce((s, e) => s + parseFloat(e.amount||0), 0);
+
+      const { error } = await supabase.from('vishnu_reports').insert({
+        title:        form.title.trim(),
+        period_from:  form.period_from,
+        period_to:    form.period_to,
+        notes:        form.notes.trim() || null,
+        total_sales:  totalSales,
+        total_expenses: totalExp,
+      });
+      if (error) throw new Error(error.message);
+      setShowForm(false);
+      setForm({ title:'', period_from:'', period_to: new Date().toISOString().split('T')[0], notes:'' });
+      fetchReports();
+    } catch (ex) { alert('Error: ' + ex.message); }
+    finally { setSaving(false); }
+  };
+
+  const fmtMoney = n => '₹' + Number(n||0).toLocaleString('en-IN', { maximumFractionDigits:0 });
+  const fmtDate  = d => d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+
+  return (
+    <div style={{ fontFamily:"'Inter',-apple-system,sans-serif" }}>
+      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between',
+        marginBottom:22, flexWrap:'wrap', gap:12 }}>
+        <div>
+          <div style={{ fontSize:20, fontWeight:700, color:'var(--label)', letterSpacing:'-0.3px', marginBottom:3 }}>
+            📝 Reports
+          </div>
+          <div style={{ fontSize:13, color:'var(--label-4)' }}>
+            Create financial reports for any period. Snapshot saved permanently.
+          </div>
+        </div>
+        <button onClick={() => setShowForm(v => !v)}
+          style={{ padding:'10px 22px', background:'linear-gradient(135deg,#7c3aed,#4f46e5)',
+            color:'#fff', border:'none', borderRadius:12, fontSize:13, fontWeight:700,
+            cursor:'pointer', fontFamily:'inherit', boxShadow:'0 3px 12px rgba(124,58,237,0.3)' }}>
+          + Create Report
+        </button>
+      </div>
+
+      {/* Create form */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div initial={{ opacity:0, y:-8 }} animate={{ opacity:1, y:0 }}
+            exit={{ opacity:0, y:-8 }}
+            style={{ background:'var(--bg-2)', border:'1px solid var(--bg-4)', borderRadius:16,
+              padding:'22px 24px', marginBottom:24, boxShadow:'var(--shadow-sm)' }}>
+            <div style={{ fontSize:15, fontWeight:700, color:'var(--label)', marginBottom:16 }}>
+              New Report
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr', gap:12, marginBottom:12 }}>
+              <div>
+                <label style={{ fontSize:12, fontWeight:600, color:'var(--label-3)', display:'block', marginBottom:4 }}>
+                  Report Title *
+                </label>
+                <input value={form.title}
+                  onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
+                  placeholder="e.g. Q3 2026 Financial Summary"
+                  style={{ width:'100%', padding:'9px 12px', fontSize:13, border:'1.5px solid var(--bg-4)',
+                    borderRadius:9, background:'var(--bg-3)', color:'var(--label)',
+                    fontFamily:'inherit', outline:'none', boxSizing:'border-box' }} />
+              </div>
+              {[
+                { k:'period_from', label:'From Date *' },
+                { k:'period_to',   label:'To Date *'   },
+              ].map(f => (
+                <div key={f.k}>
+                  <label style={{ fontSize:12, fontWeight:600, color:'var(--label-3)',
+                    display:'block', marginBottom:4 }}>{f.label}</label>
+                  <input type="date" value={form[f.k]}
+                    onChange={e => setForm(p => ({ ...p, [f.k]: e.target.value }))}
+                    style={{ width:'100%', padding:'9px 12px', fontSize:13,
+                      border:'1.5px solid var(--bg-4)', borderRadius:9,
+                      background:'var(--bg-3)', color:'var(--label)',
+                      fontFamily:'inherit', outline:'none', boxSizing:'border-box' }} />
+                </div>
+              ))}
+            </div>
+            <div style={{ marginBottom:14 }}>
+              <label style={{ fontSize:12, fontWeight:600, color:'var(--label-3)',
+                display:'block', marginBottom:4 }}>Notes / Observations</label>
+              <textarea value={form.notes}
+                onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+                placeholder="Write your notes, observations, or anything important about this period…"
+                style={{ width:'100%', minHeight:90, padding:'9px 12px', fontSize:13,
+                  border:'1.5px solid var(--bg-4)', borderRadius:9, background:'var(--bg-3)',
+                  color:'var(--label)', fontFamily:'inherit', outline:'none',
+                  resize:'vertical', boxSizing:'border-box' }} />
+            </div>
+            <div style={{ background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:9,
+              padding:'9px 14px', fontSize:12, color:'#1D4ED8', marginBottom:14 }}>
+              💡 Financial snapshot (total sales & expenses) will be automatically calculated for this period and saved with the report.
+            </div>
+            <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+              <button onClick={() => setShowForm(false)}
+                style={{ padding:'9px 20px', background:'var(--bg-3)', border:'1px solid var(--bg-4)',
+                  color:'var(--label-3)', borderRadius:10, fontSize:13, fontWeight:600,
+                  cursor:'pointer', fontFamily:'inherit' }}>Cancel</button>
+              <button onClick={handleSave} disabled={saving}
+                style={{ padding:'9px 24px', background:'linear-gradient(135deg,#7c3aed,#4f46e5)',
+                  color:'#fff', border:'none', borderRadius:10, fontSize:13, fontWeight:700,
+                  cursor:'pointer', fontFamily:'inherit',
+                  boxShadow:'0 3px 12px rgba(124,58,237,0.3)' }}>
+                {saving ? '⏳ Saving…' : '💾 Save Report'}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Reports list */}
+      {loading ? (
+        <div style={{ textAlign:'center', padding:50, color:'var(--label-4)', fontSize:14 }}>Loading…</div>
+      ) : reports.length === 0 ? (
+        <div style={{ textAlign:'center', padding:'60px 20px', background:'var(--bg-2)',
+          borderRadius:16, border:'1px solid var(--bg-4)' }}>
+          <div style={{ fontSize:48, opacity:0.15, marginBottom:14 }}>📝</div>
+          <div style={{ fontSize:16, fontWeight:600, color:'var(--label-3)', marginBottom:6 }}>No reports yet</div>
+          <div style={{ fontSize:13, color:'var(--label-4)' }}>Create your first report above</div>
+        </div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          {reports.map((r, i) => (
+            <motion.div key={r.id} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }}
+              transition={{ delay:i*0.04 }}
+              style={{ background:'var(--bg-2)', border:'1px solid var(--bg-4)', borderRadius:16,
+                overflow:'hidden', boxShadow:'var(--shadow-sm)' }}>
+              {/* Header */}
+              <div style={{ padding:'16px 20px', borderBottom:'1px solid var(--bg-4)',
+                display:'flex', alignItems:'flex-start', gap:14 }}>
+                <div style={{ width:42, height:42, borderRadius:12,
+                  background:'linear-gradient(135deg,#7c3aed,#4f46e5)',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  fontSize:20, color:'#fff', flexShrink:0 }}>📝</div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:15, fontWeight:700, color:'var(--label)', marginBottom:3 }}>
+                    {r.title}
+                  </div>
+                  <div style={{ fontSize:12, color:'var(--label-4)', display:'flex', gap:10, flexWrap:'wrap' }}>
+                    <span>📅 {fmtDate(r.period_from)} → {fmtDate(r.period_to)}</span>
+                    <span>Created: {fmtDate(r.created_at)}</span>
+                  </div>
+                </div>
+                {/* Financial snapshot */}
+                <div style={{ display:'flex', gap:8, flexShrink:0, flexWrap:'wrap' }}>
+                  <div style={{ textAlign:'right' }}>
+                    <div style={{ fontSize:10, fontWeight:700, color:'#007AFF', textTransform:'uppercase', letterSpacing:'0.4px' }}>Sales</div>
+                    <div style={{ fontSize:15, fontWeight:800, color:'#007AFF' }}>{fmtMoney(r.total_sales)}</div>
+                  </div>
+                  <div style={{ textAlign:'right' }}>
+                    <div style={{ fontSize:10, fontWeight:700, color:'#FF3B30', textTransform:'uppercase', letterSpacing:'0.4px' }}>Expenses</div>
+                    <div style={{ fontSize:15, fontWeight:800, color:'#FF3B30' }}>{fmtMoney(r.total_expenses)}</div>
+                  </div>
+                  <div style={{ textAlign:'right' }}>
+                    <div style={{ fontSize:10, fontWeight:700, color:r.net_amount>=0?'#15803D':'#B91C1C', textTransform:'uppercase', letterSpacing:'0.4px' }}>Net</div>
+                    <div style={{ fontSize:15, fontWeight:800, color:r.net_amount>=0?'#15803D':'#B91C1C' }}>{fmtMoney(r.net_amount)}</div>
+                  </div>
+                </div>
+              </div>
+              {/* Notes */}
+              {r.notes && (
+                <div style={{ padding:'12px 20px', fontSize:13, color:'var(--label-3)',
+                  background:'var(--bg-3)', fontStyle:'italic', lineHeight:1.6 }}>
+                  "{r.notes}"
+                </div>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -28,16 +28,21 @@ function printBill({ bill, items, customer, doctor, store, payments }) {
     ' ' + now.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
 
   const itemRows = items.map((item, i) => {
-    const mrpUnit  = item.mrpPack / (item.packSize || 1);
-    const discAmt  = mrpUnit * (item.discountPct || 0) / 100;
-    const finalP   = item.sellPrice;
+    const mrpUnit   = item.mrpPack / (item.packSize || 1);
+    const finalP    = item.sellPrice;
     const lineTotal = finalP * totalUnits(item);
+    const domStr    = item.dom ? fmtD(item.dom) : '—';
+    const expStr    = item.expiry ? fmtD(item.expiry) : '—';
     return `
       <tr>
         <td>${i + 1}</td>
         <td>
           <div style="font-weight:600">${item.name}</div>
-          <div style="font-size:10px;color:#666">Batch: ${item.batch} &nbsp;|&nbsp; Exp: ${fmtD(item.expiry)}</div>
+          <div style="font-size:9.5px;color:#666">
+            Batch: <strong>${item.batch || '—'}</strong>
+            &nbsp;|&nbsp; Mfg: ${domStr}
+            &nbsp;|&nbsp; Exp: ${expStr}
+          </div>
         </td>
         <td style="text-align:center">${item.packSize} ${item.packUnit}</td>
         <td style="text-align:center">${totalUnits(item)}</td>
@@ -243,6 +248,7 @@ export default function BillingPage({ storeId, managerId }) {
       medType:     invItem.medicines?.type || 'Other',
       batch:       invItem.batch_number,
       expiry:      invItem.expiry_date,
+      dom:         invItem.date_of_manufacture,
       packSize:    ps,
       packUnit:    invItem.medicines?.pack_unit || 'unit',
       maxUnits:    invItem.units_remaining,
