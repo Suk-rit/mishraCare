@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+/* ── iOS-style design tokens ── */
+:root {
+  --bg:          #F2F2F7;   /* iOS system background */
+  --bg-2:        #FFFFFF;   /* elevated surface */
+  --bg-3:        #F2F2F7;   /* grouped table background */
+  --bg-4:        #E5E5EA;   /* separator / subtle */
+
+  --label:       #1C1C1E;   /* primary text */
+  --label-2:     #3A3A3C;   /* secondary */
+  --label-3:     #636366;   /* tertiary */
+  --label-4:     #8E8E93;   /* quaternary / placeholder */
+
+  --accent:      #FF3B30;   /* iOS red — MishraCare brand */
+  --accent-2:    #FF6961;   /* lighter accent */
+  --accent-bg:   #FFF1F0;   /* tinted accent bg */
+  --accent-ring: rgba(255,59,48,0.18);
+
+  --blue:        #007AFF;
+  --green:       #34C759;
+  --orange:      #FF9500;
+  --purple:      #AF52DE;
+  --teal:        #5AC8FA;
+  --indigo:      #5856D6;
+
+  --success-bg:  #F0FDF4;
+  --success-text:#15803D;
+  --error-bg:    #FFF1F0;
+  --error-text:  #B91C1C;
+  --warn-bg:     #FFFBEB;
+  --warn-text:   #92400E;
+
+  --radius-sm:   10px;
+  --radius-md:   14px;
+  --radius-lg:   20px;
+  --radius-xl:   28px;
+
+  --shadow-sm:   0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:   0 4px 16px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg:   0 12px 40px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.05);
+  --shadow-float:0 20px 60px rgba(0,0,0,0.14), 0 8px 20px rgba(0,0,0,0.06);
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--label);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 15px;
+}
