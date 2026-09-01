@@ -6,6 +6,7 @@ import { getSession, clearSession, saveSession } from '../utils/session';
 import { generatePurchaseOrderPDF } from '../utils/generatePurchaseOrderPDF';
 import { uploadFile } from '../utils/storage';
 import AddStoreModal from '../components/AddStoreModal';
+import AppShell from '../components/AppShell';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const NAV = [
@@ -780,91 +781,15 @@ export default function DevtaDashboard() {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ minHeight:'100vh', background:'linear-gradient(160deg,#E1F5FE 0%,#F5FBFF 50%,#fff 100%)',
-      fontFamily:"'Inter',-apple-system,sans-serif", color:'#1a1a2e' }}>
-
-      {/* ── Top bar ── */}
-      <header style={{ background:'rgba(255,255,255,0.85)', backdropFilter:'blur(20px)',
-        borderBottom:'1px solid #B3E5FC', padding:'0 28px', height:58,
-        display:'flex', alignItems:'center', justifyContent:'space-between',
-        position:'sticky', top:0, zIndex:40,
-        boxShadow:'0 2px 16px rgba(2,136,209,0.08)' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <div style={{ width:34, height:34, borderRadius:10,
-            background:'linear-gradient(135deg,#0288D1,#01579B)',
-            display:'flex', alignItems:'center', justifyContent:'center',
-            fontSize:18 }}>🌤️</div>
-          <span style={{ fontWeight:800, fontSize:16, color:'#01579B',
-            letterSpacing:'-0.3px' }}>
-            Devta <span style={{ color:'#0288D1' }}>Portal</span>
-          </span>
-        </div>
-        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-          <div style={{ width:32, height:32, borderRadius:'50%',
-            background:'linear-gradient(135deg,#0288D1,#01579B)',
-            display:'flex', alignItems:'center', justifyContent:'center',
-            fontSize:12, fontWeight:700, color:'#fff' }}>
-            {initials}
-          </div>
-          <span style={{ fontSize:13, color:'#0288D1', fontWeight:600 }}>
-            {session?.name}
-          </span>
-          <button onClick={handleLogout}
-            style={{ background:'#FEE2E2', color:'#B91C1C', border:'none',
-              borderRadius:8, padding:'6px 14px', fontSize:12, fontWeight:600,
-              cursor:'pointer', fontFamily:'inherit' }}>
-            Logout
-          </button>
-        </div>
-      </header>
-
-      {/* ── Main layout ── */}
-      <div style={{ display:'flex', maxWidth:1200, margin:'0 auto',
-        padding:'28px 24px', gap:24 }}>
-
-        {/* Sidebar */}
-        <aside style={{ width:200, flexShrink:0 }}>
-          {/* Stat cards */}
-          <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:20 }}>
-            {[
-              { label:'Pending Batches',   value:stats.pending,  color:'#F57F17', bg:'#FFF8E1' },
-              { label:'Admins Waiting',    value:stats.admins,   color:'#0288D1', bg:'#E1F5FE' },
-              { label:'Bills Issued',      value:stats.approved, color:'#2E7D32', bg:'#E8F5E9' },
-              { label:'People Requests',   value: pendingEmployees.length + pendingAdminTeam.length, color:'#7C3AED', bg:'#F5F3FF' },
-            ].map((s, i) => (
-              <div key={i} style={{ background:s.bg, borderRadius:12,
-                padding:'12px 14px', border:`1px solid ${s.color}22` }}>
-                <div style={{ fontSize:10, fontWeight:700, color:s.color,
-                  textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:4 }}>
-                  {s.label}
-                </div>
-                <div style={{ fontSize:26, fontWeight:800, color:s.color, lineHeight:1 }}>
-                  {s.value}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Nav */}
-          <nav style={{ display:'flex', flexDirection:'column', gap:4 }}>
-            {NAV.map(n => (
-              <button key={n.id} onClick={() => setActive(n.id)}
-                style={{ display:'flex', alignItems:'center', gap:10,
-                  padding:'10px 14px', borderRadius:11, border:'none',
-                  cursor:'pointer', fontFamily:'inherit', fontSize:13,
-                  fontWeight: active === n.id ? 700 : 500,
-                  background: active === n.id ? 'rgba(2,136,209,0.12)' : 'transparent',
-                  color: active === n.id ? '#0288D1' : '#666',
-                  transition:'all 0.15s' }}>
-                <span style={{ fontSize:16 }}>{n.icon}</span>
-                {n.label}
-              </button>
-            ))}
-          </nav>
-        </aside>
-
-        {/* Main content */}
-        <main style={{ flex:1, minWidth:0 }}>
+    <AppShell
+      role="devta"
+      navItems={NAV}
+      active={active}
+      onNav={setActive}
+      userName={session?.name || 'Devta'}
+      onLogout={handleLogout}
+    >
+      <div style={{ maxWidth:1000, margin:'0 auto', padding:'24px' }}>
 
           {/* Banner */}
           <AnimatePresence>
@@ -1392,7 +1317,6 @@ export default function DevtaDashboard() {
 
           </AnimatePresence>
           )}
-        </main>
       </div>
 
       {/* Add Store Modal */}
@@ -1405,6 +1329,6 @@ export default function DevtaDashboard() {
           />
         )}
       </AnimatePresence>
-    </div>
+    </AppShell>
   );
 }

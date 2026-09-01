@@ -5,6 +5,7 @@ import { supabase } from '../utils/supabase';
 import { clearSession } from '../utils/session';
 import { getDateRange } from '../utils/analytics';
 import RefreshButton from '../components/RefreshButton';
+import AppShell from '../components/AppShell';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', { maximumFractionDigits:0 }); }
@@ -27,7 +28,8 @@ function VishnuAnalytics({ admins, storesMap, managersMap }) {
   const [chainSales,   setChainSales]  = useState(0);
   const [chainBills,   setChainBills]  = useState(0);
   const [chainExpenses,setChainExpenses]=useState(0);
-  const [adminData,    setAdminData]   = useState([]); // per-admin rollup
+  const [adminData,    setAdminData]   = useState([]);
+  const [devtaExpList, setDevtaExpList]= useState([]); // devta's own expenses
   const [expandAdmin,  setExpandAdmin] = useState({});
 
   const load = useCallback(async () => {
@@ -57,7 +59,7 @@ function VishnuAnalytics({ admins, storesMap, managersMap }) {
         .gte('expense_date', dateStr)
         .lte('expense_date', endStr),
       supabase.from('devta_expenses')
-        .select('amount, description, expense_date')
+        .select('amount, description, expense_date, category, payment_method, proof_url')
         .gte('expense_date', dateStr)
         .lte('expense_date', endStr),
     ]);
@@ -66,6 +68,9 @@ function VishnuAnalytics({ admins, storesMap, managersMap }) {
     const allStoreExp = storeExp || [];
     const allAdminExp = adminExp || [];
     const allDevtaExp = devtaExp || [];
+
+    // Save devta expenses for display
+    setDevtaExpList(allDevtaExp);
 
     // Chain totals
     const totalSales = allBills.reduce((s, b) => s + parseFloat(b.total_amount || 0), 0);
@@ -392,6 +397,49 @@ function VishnuAnalytics({ admins, storesMap, managersMap }) {
           })}
         </div>
       )}
+
+      {/* ── Devta Expenses ── */}
+      {!loading && devtaExpList.length > 0 && (
+        <div style={{ marginTop:20 }}>
+          <div style={{ fontSize:14, fontWeight:700, color:'var(--label)', marginBottom:12,
+            display:'flex', alignItems:'center', gap:10 }}>
+            🌤️ Devta Expenses
+            <span style={{ fontSize:12, fontWeight:600, background:'#E1F5FE',
+              color:'#0288D1', borderRadius:20, padding:'2px 10px',
+              border:'1px solid #B3E5FC' }}>
+              {fmt(devtaExpList.reduce((s,e) => s + parseFloat(e.amount||0), 0))} total
+            </span>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
+            {devtaExpList.map((e, i) => (
+              <div key={i} style={{ display:'flex', alignItems:'center', gap:12,
+                padding:'10px 16px', background:'var(--bg-2)',
+                border:'1px solid #B3E5FC', borderRadius:12 }}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:600, color:'var(--label)', marginBottom:2 }}>
+                    {e.description}
+                  </div>
+                  <div style={{ fontSize:11, color:'var(--label-4)', display:'flex', gap:8 }}>
+                    <span>{new Date(e.expense_date).toLocaleDateString('en-IN')}</span>
+                    {e.category && <span style={{ textTransform:'capitalize' }}>· {e.category.replace(/_/g,' ')}</span>}
+                    {e.payment_method && <span>· {e.payment_method.replace(/_/g,' ')}</span>}
+                  </div>
+                </div>
+                <div style={{ textAlign:'right', flexShrink:0 }}>
+                  <div style={{ fontSize:14, fontWeight:800, color:'#B91C1C' }}>
+                    {fmt(e.amount)}
+                  </div>
+                  {e.proof_url && (
+                    <a href={e.proof_url} target="_blank" rel="noreferrer"
+                      style={{ fontSize:10, color:'#0288D1', fontWeight:600,
+                        textDecoration:'underline' }}>Proof</a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -670,42 +718,31 @@ export default function VishnuDashboard() {
   };
 
   return (
-    <div style={{ minHeight:'100vh', background:'var(--bg)',
-      fontFamily:"'Inter',-apple-system,sans-serif", color:'var(--label)' }}>
-
-      {/* Nav */}
-      <nav style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
-        padding:'0 28px', height:56, background:'rgba(255,255,255,0.9)',
-        backdropFilter:'blur(20px)', borderBottom:'1px solid var(--bg-4)',
-        position:'sticky', top:0, zIndex:50 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <span style={{ fontSize:22 }}>🕉️</span>
-          <span style={{ fontWeight:800, fontSize:16, color:'var(--label)', letterSpacing:'-0.3px' }}>
-            Vishnu <span style={{ color:'#7c3aed' }}>Control</span>
-          </span>
-          <span style={{ fontSize:10, fontWeight:700,
-            background:'linear-gradient(135deg,#7c3aed,#4f46e5)', color:'#fff',
-            padding:'2px 10px', borderRadius:20, textTransform:'uppercase',
-            letterSpacing:'0.4px' }}>Super Admin</span>
-        </div>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+    <AppShell
+      role="vishnu"
+      navItems={[
+        { id:'overview',  icon:'🏢', label:'Org Chart'     },
+        { id:'analytics', icon:'📊', label:'Analytics'     },
+        { id:'cash',      icon:'💰', label:'Cash Register' },
+        { id:'reports',   icon:'📝', label:'Reports'       },
+      ]}
+      active={tab}
+      onNav={setTab}
+      userName="Vishnu"
+      onLogout={handleLogout}
+      headerRight={
+        <div style={{ display:'flex', gap:8 }}>
           <RefreshButton onRefresh={fetchAll} label="" />
           <button onClick={() => setShowAddAdmin(true)}
             style={{ background:'linear-gradient(135deg,#7c3aed,#4f46e5)', color:'#fff',
-              border:'none', borderRadius:10, padding:'8px 18px', fontSize:13, fontWeight:700,
+              border:'none', borderRadius:10, padding:'7px 16px', fontSize:12, fontWeight:700,
               cursor:'pointer', fontFamily:'inherit',
               boxShadow:'0 3px 12px rgba(124,58,237,0.35)' }}>
             + Add Admin
           </button>
-          <button onClick={handleLogout}
-            style={{ background:'var(--bg-3)', border:'1px solid var(--bg-4)',
-              color:'var(--label-3)', padding:'6px 14px', borderRadius:8, fontSize:13,
-              cursor:'pointer', fontFamily:'inherit', fontWeight:500 }}>
-            Logout
-          </button>
         </div>
-      </nav>
-
+      }
+    >
       <div style={{ padding:'28px', maxWidth:1300, margin:'0 auto' }}>
         {/* Header */}
         <div style={{ marginBottom:20 }}>
@@ -739,28 +776,6 @@ export default function VishnuDashboard() {
                 {loading ? '…' : s.value}
               </div>
             </motion.div>
-          ))}
-        </div>
-
-        {/* Tabs */}
-        <div style={{ display:'flex', gap:4, background:'var(--bg-2)',
-          border:'1px solid var(--bg-4)', borderRadius:12, padding:4,
-          marginBottom:24, width:'fit-content', boxShadow:'var(--shadow-sm)' }}>
-          {[
-            { id:'overview',  label:'🏢 Org Chart'     },
-            { id:'analytics', label:'📊 Analytics'     },
-            { id:'cash',      label:'💰 Cash Register' },
-            { id:'reports',   label:'📝 Reports'       },
-          ].map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              style={{ padding:'9px 20px', borderRadius:10, border:'none',
-                cursor:'pointer', fontFamily:'inherit', fontSize:13, fontWeight:600,
-                transition:'all 0.18s',
-                background: tab===t.id ? 'var(--bg-2)' : 'transparent',
-                color: tab===t.id ? '#7c3aed' : 'var(--label-4)',
-                boxShadow: tab===t.id ? 'var(--shadow-md)' : 'none' }}>
-              {t.label}
-            </button>
           ))}
         </div>
 
@@ -1069,7 +1084,7 @@ export default function VishnuDashboard() {
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </AppShell>
   );
 }
 

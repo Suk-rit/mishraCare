@@ -10,7 +10,7 @@ import Inventory from './Inventory';
 import AddStock from './AddStock';
 import IssueResolution from './IssueResolution';
 import AdminAnalytics from './AdminAnalytics';
-import FileUpload from '../components/FileUpload';
+import AppShell from '../components/AppShell';
 import '../styles/login.css';
 import '../styles/stores.css';
 
@@ -30,8 +30,7 @@ export default function AdminDashboard() {
   const session  = getSession();
 
   const [active,       setActive]       = useState('dashboard');
-  const [sidebarOpen,  setSidebarOpen]  = useState(true);
-  const [selectedStore,setSelectedStore]= useState(null); // store object for detail view
+  const [selectedStore,setSelectedStore]= useState(null);
   const [stats,        setStats]        = useState({ stores: '—', managers: '—', employees: '—', pending: '—' });
 
   useEffect(() => {
@@ -83,100 +82,27 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div style={{
-      display: 'flex', minHeight: '100vh',
-      background: 'var(--bg)',
-      fontFamily: "'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
-      color: 'var(--label)',
-    }}>
-      {/* ── Sidebar ── */}
-      <motion.aside
-        initial={false}
-        animate={{ width: sidebarOpen ? 216 : 64 }}
-        transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-        style={{
-          background: 'rgba(255,255,255,0.92)',
-          backdropFilter: 'blur(20px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-          borderRight: '1px solid var(--bg-4)',
-          display: 'flex', flexDirection: 'column',
-          overflow: 'hidden', flexShrink: 0,
-          position: 'sticky', top: 0, height: '100vh',
-        }}
-      >
-        <div style={{ padding: '18px 14px 16px', borderBottom: '1px solid var(--bg-4)', display: 'flex', alignItems: 'center', gap: 10, minHeight: 56 }}>
-          <div style={{ width: 34, height: 34, flexShrink: 0, background: 'linear-gradient(145deg,#FF3B30,#C0392B)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, boxShadow: '0 3px 10px rgba(255,59,48,0.28)' }}>💊</div>
-          <AnimatePresence>
-            {sidebarOpen && (
-              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                style={{ fontWeight: 800, fontSize: 15, whiteSpace: 'nowrap', color: 'var(--label)', letterSpacing: '-0.3px' }}>
-                Mishra<span style={{ color: 'var(--accent)' }}>Care</span>
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <nav style={{ flex: 1, padding: '10px 8px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
-          {NAV.map(item => (
-            <button key={item.id}
-              onClick={() => { setActive(item.id); setSelectedStore(null); }}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: sidebarOpen ? '9px 12px' : '9px',
-                justifyContent: sidebarOpen ? 'flex-start' : 'center',
-                borderRadius: 10, border: 'none', cursor: 'pointer',
-                background: active === item.id ? 'var(--accent-bg)' : 'transparent',
-                color: active === item.id ? 'var(--accent)' : 'var(--label-3)',
-                fontSize: 13.5, fontWeight: active === item.id ? 600 : 500,
-                transition: 'all 0.18s', fontFamily: 'inherit',
-              }}>
-              <span style={{ fontSize: 17, flexShrink: 0 }}>{item.icon}</span>
-              <AnimatePresence>
-                {sidebarOpen && (
-                  <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ whiteSpace: 'nowrap' }}>
-                    {item.label}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </button>
-          ))}
-        </nav>
-
-        <button onClick={() => setSidebarOpen(o => !o)}
-          style={{ margin: '8px', padding: '9px', background: 'var(--bg-3)', border: '1px solid var(--bg-4)', borderRadius: 10, cursor: 'pointer', color: 'var(--label-4)', fontSize: 13, transition: 'all 0.18s', fontFamily: 'inherit' }}>
-          {sidebarOpen ? '◀' : '▶'}
-        </button>
-      </motion.aside>
-
-      {/* ── Main ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-        {/* Top bar */}
-        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', height: 56, background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', borderBottom: '1px solid var(--bg-4)', flexShrink: 0, position: 'sticky', top: 0, zIndex: 40 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 600, color: 'var(--label)' }}>
-            {active === 'store-detail' && (
-              <button onClick={() => { setActive('stores'); setSelectedStore(null); }}
-                style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 14, fontWeight: 600, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}>
-                ← Stores
-              </button>
-            )}
-            {active === 'store-detail' && <span style={{ color: 'var(--label-4)' }}>/</span>}
-            <span>{active === 'store-detail' ? selectedStore?.store_name : NAV.find(n => n.id === active)?.label}</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#FF3B30,#C0392B)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', boxShadow: '0 2px 8px rgba(255,59,48,0.25)' }}>{initials}</div>
-            <span style={{ fontSize: 13, color: 'var(--label-2)', fontWeight: 500 }}>{session.name || session.email}</span>
-            <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid rgba(255,59,48,0.18)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Admin</span>
-            <button onClick={handleLogout}
-              style={{ background: 'var(--bg-3)', border: '1px solid var(--bg-4)', color: 'var(--label-3)', padding: '6px 14px', borderRadius: 8, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}
-              onMouseEnter={e => { e.target.style.background = '#FEE2E2'; e.target.style.color = '#B91C1C'; }}
-              onMouseLeave={e => { e.target.style.background = 'var(--bg-3)'; e.target.style.color = 'var(--label-3)'; }}>
-              Logout
-            </button>
-          </div>
-        </header>
-
-        <main style={{ flex: 1, overflowY: 'auto', background: 'var(--bg)' }}>
-          <AnimatePresence mode="wait">
+    <AppShell
+      role="admin"
+      navItems={NAV}
+      active={active}
+      onNav={(id) => { setActive(id); setSelectedStore(null); }}
+      title="MishraCare"
+      userName={session.name || session.email}
+      onLogout={handleLogout}
+      headerRight={
+        active === 'store-detail' ? (
+          <button onClick={() => { setActive('stores'); setSelectedStore(null); }}
+            style={{ background:'none', border:'none', color:'var(--accent)',
+              cursor:'pointer', fontSize:14, fontWeight:600, fontFamily:'inherit',
+              display:'flex', alignItems:'center', gap:4, padding:0 }}>
+            ← Stores / {selectedStore?.store_name}
+          </button>
+        ) : null
+      }
+    >
+      <div style={{ overflowY:'auto' }}>
+        <AnimatePresence mode="wait">
 
             {/* Dashboard overview */}
             {active === 'dashboard' && (
@@ -290,9 +216,8 @@ export default function AdminDashboard() {
             )}
 
           </AnimatePresence>
-        </main>
       </div>
-    </div>
+    </AppShell>
   );
 }
 

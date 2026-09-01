@@ -9,6 +9,7 @@ import BillingPage      from './BillingPage';
 import StoreAnalytics   from './StoreAnalytics';
 import InventoryRequestTab from './InventoryRequestTab';
 import RefreshButton    from '../components/RefreshButton';
+import AppShell         from '../components/AppShell';
 import '../styles/login.css';
 import '../styles/stores.css';
 
@@ -82,25 +83,28 @@ export default function StoreManagerDashboard() {
 
   const S = { padding: '0 28px', maxWidth: 1100, margin: '0 auto' };
 
+  const NAV_ITEMS = [
+    { id: 'overview',  icon: '📊', label: 'Overview'                                                            },
+    { id: 'billing',   icon: '🧾', label: 'Billing'                                                             },
+    { id: 'analytics', icon: '📈', label: 'Analytics'                                                           },
+    { id: 'transfers', icon: '📦', label: 'Transfers',   badge: pendingTransfers, alert: pendingTransfers > 0   },
+    { id: 'request',   icon: '📋', label: 'Request Stock'                                                       },
+    { id: 'stock',     icon: '🏪', label: 'My Stock'                                                            },
+    { id: 'employees', icon: '👥', label: `My Team (${employees.filter(e=>e.status==='approved').length})`      },
+    { id: 'pending',   icon: '⏳', label: `Pending (${employees.filter(e=>e.status==='pending').length})`,
+      alert: employees.filter(e=>e.status==='pending').length > 0                                               },
+  ];
+
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', fontFamily: "'Inter',-apple-system,sans-serif", color: 'var(--label)' }}>
-
-      {/* Navbar */}
-      <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 28px', height: 56, background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', borderBottom: '1px solid var(--bg-4)', position: 'sticky', top: 0, zIndex: 50 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 30, height: 30, background: 'linear-gradient(145deg,#FF3B30,#C0392B)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, boxShadow: '0 2px 8px rgba(255,59,48,0.25)' }}>💊</div>
-          <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--label)', letterSpacing: '-0.3px' }}>Mishra<span style={{ color: 'var(--accent)' }}>Care</span></span>
-          <span style={{ fontSize: 10, fontWeight: 700, background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', padding: '2px 9px', borderRadius: 20, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Store Manager</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#007AFF,#0056CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}>{initials}</div>
-          <span style={{ fontSize: 13, color: 'var(--label-2)', fontWeight: 500 }}>{session.name || session.email}</span>
-          <button onClick={handleLogout} style={{ background: 'var(--bg-3)', border: '1px solid var(--bg-4)', color: 'var(--label-3)', padding: '6px 14px', borderRadius: 8, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>Logout</button>
-        </div>
-      </nav>
-
-      {/* Body */}
-      <div style={{ ...S, paddingTop: 28, paddingBottom: 40 }}>
+    <AppShell
+      role="store_manager"
+      navItems={NAV_ITEMS}
+      active={tab}
+      onNav={setTab}
+      userName={session.name || session.email}
+      onLogout={handleLogout}
+    >
+      <div style={{ padding:'0 28px', paddingTop:28, paddingBottom:40, maxWidth:1100, margin:'0 auto' }}>
         {loading ? (
           <div style={{ color: 'var(--label-4)', padding: 40, textAlign: 'center', fontSize: 14 }}>Loading...</div>
         ) : (
@@ -109,7 +113,7 @@ export default function StoreManagerDashboard() {
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 24, display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
               <div>
                 <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--label)', letterSpacing: '-0.4px', marginBottom: 4 }}>
-                  Welcome, <span style={{ color: 'var(--accent)' }}>{session.name || 'Manager'}</span> 🏪
+                  Welcome, <span style={{ color: 'var(--accent)' }}>{session.name || 'Manager'}</span> 🌱
                 </div>
                 <div style={{ fontSize: 14, color: 'var(--label-4)' }}>
                   {storeData ? `Managing: ${storeData.store_name}` : 'Your store manager dashboard'}
@@ -118,29 +122,7 @@ export default function StoreManagerDashboard() {
               <RefreshButton onRefresh={fetchData} />
             </motion.div>
 
-            {/* Tab bar */}
-            <div style={{ display: 'flex', gap: 4, background: 'var(--bg-2)', border: '1px solid var(--bg-4)', borderRadius: 12, padding: 4, marginBottom: 22, width: 'fit-content', boxShadow: 'var(--shadow-sm)', flexWrap: 'wrap' }}>
-              {[
-                { id: 'overview',   label: '📊 Overview',                                                               alert: false },
-                { id: 'billing',    label: '🧾 Billing',                                                                alert: false },
-                { id: 'analytics',  label: '📈 Analytics',                                                              alert: false },
-                { id: 'transfers',  label: '📦 Transfers',  badge: pendingTransfers,                                    alert: pendingTransfers > 0 },
-                { id: 'request',    label: '📋 Request Stock',                                                              alert: false },
-                { id: 'stock',      label: '🏪 My Stock',                                                               alert: false },
-                { id: 'employees',  label: `👥 My Team (${employees.filter(e=>e.status==='approved').length})`,          alert: false },
-                { id: 'pending',    label: `⏳ Pending (${employees.filter(e=>e.status==='pending').length})`,           alert: employees.filter(e=>e.status==='pending').length > 0 },
-              ].map(t => (
-                <button key={t.id} onClick={() => setTab(t.id)}
-                  style={{ padding: '8px 16px', borderRadius: 9, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'all 0.18s', background: tab === t.id ? 'var(--bg-2)' : 'transparent', color: tab === t.id ? (t.alert ? '#FF9500' : 'var(--accent)') : 'var(--label-3)', boxShadow: tab === t.id ? 'var(--shadow-sm)' : 'none' }}>
-                  {t.label}
-                  {t.badge > 0 && <span style={{ marginLeft: 5, background: '#FF3B30', color: '#fff', borderRadius: 20, padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>{t.badge}</span>}
-                </button>
-              ))}
-            </div>
-
             <AnimatePresence mode="wait">
-
-              {/* OVERVIEW */}
               {tab === 'overview' && (
                 <motion.div key="ov" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                   {/* Store card */}
@@ -373,7 +355,7 @@ export default function StoreManagerDashboard() {
           />
         )}
       </AnimatePresence>
-    </div>
+    </AppShell>
   );
 }
 

@@ -36,20 +36,16 @@ function printBill({ bill, items, customer, doctor, store, payments }) {
     return `
       <tr>
         <td>${i + 1}</td>
-        <td>
-          <div style="font-weight:600">${item.name}</div>
-          <div style="font-size:9.5px;color:#666">
-            Batch: <strong>${item.batch || '—'}</strong>
-            &nbsp;|&nbsp; Mfg: ${domStr}
-            &nbsp;|&nbsp; Exp: ${expStr}
-          </div>
-        </td>
+        <td><div style="font-weight:600">${item.name}</div></td>
         <td style="text-align:center">${item.packSize} ${item.packUnit}</td>
+        <td style="text-align:center;font-family:monospace;font-size:9.5px">${item.batch || '—'}</td>
+        <td style="text-align:center">${domStr}</td>
+        <td style="text-align:center">${expStr}</td>
         <td style="text-align:center">${totalUnits(item)}</td>
         <td style="text-align:right">₹${mrpUnit.toFixed(2)}</td>
         <td style="text-align:center">${item.discountPct ? item.discountPct + '%' : '—'}</td>
         <td style="text-align:right">₹${finalP.toFixed(2)}</td>
-        <td style="text-align:right">₹${lineTotal.toFixed(2)}</td>
+        <td style="text-align:right"><strong>₹${lineTotal.toFixed(2)}</strong></td>
       </tr>`;
   }).join('');
 
@@ -126,6 +122,9 @@ function printBill({ bill, items, customer, doctor, store, payments }) {
       <th>#</th>
       <th>Medicine</th>
       <th style="text-align:center">Pack</th>
+      <th style="text-align:center">Batch No.</th>
+      <th style="text-align:center">Mfg.</th>
+      <th style="text-align:center">Expiry</th>
       <th style="text-align:center">Qty</th>
       <th style="text-align:right">MRP/Unit</th>
       <th style="text-align:center">Disc%</th>
@@ -331,10 +330,13 @@ export default function BillingPage({ storeId, managerId }) {
       if (units <= 0) { window.alert(`${item.name}: quantity must be > 0`); return; }
       if (units > item.maxUnits) { window.alert(`${item.name}: only ${item.maxUnits} units available`); return; }
     }
+    if (!customer.name.trim())  { window.alert('Customer name is required'); return; }
+    if (!customer.phone.trim()) { window.alert('Customer phone number is required'); return; }
+    if (!doctor)                { window.alert('Doctor referral is required'); return; }
     if (paidTotal <= 0) { window.alert('Enter payment amount'); return; }
     if (Math.abs(balance) > 0.01) {
-      const ok = window.confirm(`Payment total ₹${paidTotal.toFixed(2)} ≠ Bill total ₹${grandTotal.toFixed(2)}. Proceed anyway?`);
-      if (!ok) return;
+      window.alert(`Payment total ₹${paidTotal.toFixed(2)} does not match bill total ₹${grandTotal.toFixed(2)}.\n\nPlease adjust the payment amounts before saving.`);
+      return;
     }
     setSaving(true);
     try {
@@ -672,7 +674,7 @@ export default function BillingPage({ storeId, managerId }) {
               borderRadius:14, padding:'14px 16px' }}>
               <div style={{ fontSize:11, fontWeight:700, color:'var(--label-4)',
                 textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:10 }}>
-                Customer Details
+                Customer Details <span style={{ color:'#B91C1C', fontSize:12 }}>*</span>
               </div>
               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                 <input value={customer.name} onChange={e => setCustomer(p => ({ ...p, name: e.target.value }))}
@@ -693,7 +695,7 @@ export default function BillingPage({ storeId, managerId }) {
               borderRadius:14, padding:'14px 16px' }}>
               <div style={{ fontSize:11, fontWeight:700, color:'var(--label-4)',
                 textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:10 }}>
-                Referred By (Optional)
+                Referred By <span style={{ color:'#B91C1C', fontSize:12 }}>*</span>
               </div>
               <DoctorSearchInput value={doctor} onChange={setDoctor} />
             </div>
