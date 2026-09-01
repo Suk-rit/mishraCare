@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { saveSession } from '../utils/session';
 import { useNavigate } from 'react-router-dom';
+import { enterFullscreen } from '../utils/fullscreen';
 
 // ── Shooting stars canvas ─────────────────────────────────────────────────────
 function SpaceCanvas() {
@@ -189,6 +190,7 @@ export default function VishnuLogin({ onClose }) {
     setTimeout(() => {
       if (email.trim().toLowerCase() === VISHNU_EMAIL && password === VISHNU_PASS) {
         saveSession({ role: 'vishnu', email: VISHNU_EMAIL, name: 'Vishnu' });
+        enterFullscreen().catch(() => {});
         navigate('/vishnu');
       } else {
         setLoginErr('Invalid credentials');

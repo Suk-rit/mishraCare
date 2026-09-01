@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../utils/supabase';
 import { saveSession } from '../utils/session';
+import { enterFullscreen } from '../utils/fullscreen';
 
 // ─────────────────────────────────────────────────────────────
 // Sky canvas — clouds drifting, birds flying
@@ -202,6 +203,7 @@ export default function DevtaLogin({ onClose }) {
       if (password !== data.password) { setError('Incorrect password.'); return; }
 
       saveSession({ role: 'devta', email: data.email, name: data.name, id: data.id });
+      enterFullscreen().catch(() => {});
       navigate('/devta');
     } catch (ex) {
       setError(ex.message || 'Something went wrong.');

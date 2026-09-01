@@ -6,6 +6,7 @@ import { clearSession } from '../utils/session';
 import { getDateRange } from '../utils/analytics';
 import RefreshButton from '../components/RefreshButton';
 import AppShell from '../components/AppShell';
+import { uploadFiles } from '../utils/storage';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', { maximumFractionDigits:0 }); }
@@ -652,7 +653,8 @@ export default function VishnuDashboard() {
   const [expandStore,  setExpandStore]  = useState({});
   const [stats,        setStats]        = useState({ admins:0, stores:0, managers:0, employees:0 });
   const [showAddAdmin, setShowAddAdmin] = useState(false);
-  const [newAdmin,     setNewAdmin]     = useState({ email:'', password:'', full_name:'', phone:'', city:'', state:'', region:'', designation:'Area Admin' });
+  const [newAdmin,     setNewAdmin]     = useState({ email:'', password:'', full_name:'', phone:'', city:'', state:'', region:'', designation:'Area Admin', aadhar_number:'', pan_number:'', date_of_birth:'', permanent_address:'' });
+  const [adminDocs,    setAdminDocs]    = useState({ photo:null, aadhar_photo:null, pan_photo:null, id_proof:null, other_doc:null });
   const [addErr,       setAddErr]       = useState({});
   const [addLoading,   setAddLoading]   = useState(false);
 
@@ -694,20 +696,39 @@ export default function VishnuDashboard() {
     if (Object.keys(errs).length) { setAddErr(errs); return; }
     setAddLoading(true);
     try {
+      // Upload documents if provided
+      const urls = await uploadFiles('admin-documents', {
+        photo:       adminDocs.photo,
+        aadhar_photo:adminDocs.aadhar_photo,
+        pan_photo:   adminDocs.pan_photo,
+        id_proof:    adminDocs.id_proof,
+        other_doc:   adminDocs.other_doc,
+      }, 'admins');
+
       const { error } = await supabase.from('admins').insert({
-        email:        newAdmin.email.trim().toLowerCase(),
-        password_hash:newAdmin.password,
-        full_name:    newAdmin.full_name.trim(),
-        phone:        newAdmin.phone.trim()   || null,
-        city:         newAdmin.city.trim()    || null,
-        state:        newAdmin.state.trim()   || null,
-        region:       newAdmin.region.trim()  || null,
-        designation:  newAdmin.designation    || 'Area Admin',
-        is_active:    true,
+        email:             newAdmin.email.trim().toLowerCase(),
+        password_hash:     newAdmin.password,
+        full_name:         newAdmin.full_name.trim(),
+        phone:             newAdmin.phone.trim()             || null,
+        city:              newAdmin.city.trim()              || null,
+        state:             newAdmin.state.trim()             || null,
+        region:            newAdmin.region.trim()            || null,
+        designation:       newAdmin.designation              || 'Area Admin',
+        aadhar_number:     newAdmin.aadhar_number.trim()     || null,
+        pan_number:        newAdmin.pan_number.trim().toUpperCase() || null,
+        date_of_birth:     newAdmin.date_of_birth            || null,
+        permanent_address: newAdmin.permanent_address.trim() || null,
+        photo_url:         urls.photo        || null,
+        aadhar_photo_url:  urls.aadhar_photo || null,
+        pan_photo_url:     urls.pan_photo    || null,
+        id_proof_url:      urls.id_proof     || null,
+        other_doc_url:     urls.other_doc    || null,
+        is_active:         true,
       });
       if (error) throw new Error(error.message);
       setShowAddAdmin(false);
-      setNewAdmin({ email:'', password:'', full_name:'', phone:'', city:'', state:'', region:'', designation:'Area Admin' });
+      setNewAdmin({ email:'', password:'', full_name:'', phone:'', city:'', state:'', region:'', designation:'Area Admin', aadhar_number:'', pan_number:'', date_of_birth:'', permanent_address:'' });
+      setAdminDocs({ photo:null, aadhar_photo:null, pan_photo:null, id_proof:null, other_doc:null });
       setAddErr({});
       fetchAll();
     } catch (err) {
@@ -907,10 +928,13 @@ export default function VishnuDashboard() {
                               gap:12, padding:14, background:'var(--bg-3)',
                               borderRadius:'var(--radius-md)', border:'1px solid var(--bg-4)' }}>
                               {[
-                                { label:'Designation', value:selectedAdmin.designation },
-                                { label:'City',        value:selectedAdmin.city   },
-                                { label:'State',       value:selectedAdmin.state  },
-                                { label:'Region',      value:selectedAdmin.region },
+                                { label:'Designation',    value:selectedAdmin.designation   },
+                                { label:'City',           value:selectedAdmin.city          },
+                                { label:'State',          value:selectedAdmin.state         },
+                                { label:'Region',         value:selectedAdmin.region        },
+                                { label:'Aadhar No.',     value:selectedAdmin.aadhar_number },
+                                { label:'PAN No.',        value:selectedAdmin.pan_number    },
+                                { label:'Date of Birth',  value:selectedAdmin.date_of_birth ? new Date(selectedAdmin.date_of_birth).toLocaleDateString('en-IN') : null },
                               ].map((r,i) => (
                                 <div key={i}>
                                   <div style={{ fontSize:10, fontWeight:700, color:'var(--label-4)',
@@ -922,6 +946,44 @@ export default function VishnuDashboard() {
                                 </div>
                               ))}
                             </div>
+
+                            {/* Permanent address */}
+                            {selectedAdmin.permanent_address && (
+                              <div style={{ marginTop:10, padding:'8px 12px', background:'var(--bg-3)',
+                                borderRadius:8, fontSize:12, color:'var(--label-2)' }}>
+                                <span style={{ fontSize:10, fontWeight:700, color:'var(--label-4)',
+                                  textTransform:'uppercase', letterSpacing:'0.5px', marginRight:6 }}>Address:</span>
+                                {selectedAdmin.permanent_address}
+                              </div>
+                            )}
+
+                            {/* Documents — Vishnu only */}
+                            {(selectedAdmin.photo_url || selectedAdmin.aadhar_photo_url || selectedAdmin.pan_photo_url || selectedAdmin.id_proof_url || selectedAdmin.other_doc_url) && (
+                              <div style={{ marginTop:14 }}>
+                                <div style={{ fontSize:10, fontWeight:700, color:'#7c3aed',
+                                  textTransform:'uppercase', letterSpacing:'0.7px', marginBottom:8 }}>
+                                  🔒 KYC Documents (Vishnu Only)
+                                </div>
+                                <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                                  {[
+                                    { label:'Profile Photo',  url:selectedAdmin.photo_url         },
+                                    { label:'Aadhar Card',    url:selectedAdmin.aadhar_photo_url   },
+                                    { label:'PAN Card',       url:selectedAdmin.pan_photo_url      },
+                                    { label:'Other ID',       url:selectedAdmin.id_proof_url       },
+                                    { label:'Other Doc',      url:selectedAdmin.other_doc_url      },
+                                  ].filter(d => d.url).map((d,i) => (
+                                    <a key={i} href={d.url} target="_blank" rel="noreferrer"
+                                      style={{ padding:'6px 14px', background:'#F5F3FF',
+                                        border:'1px solid #DDD6FE', borderRadius:8,
+                                        fontSize:12, fontWeight:600, color:'#7c3aed',
+                                        textDecoration:'none', display:'flex',
+                                        alignItems:'center', gap:5 }}>
+                                      📄 {d.label}
+                                    </a>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
 
                           {/* Stores */}
@@ -1023,13 +1085,13 @@ export default function VishnuDashboard() {
             <motion.div initial={{ opacity:0,scale:0.95,y:20 }}
               animate={{ opacity:1,scale:1,y:0 }} exit={{ opacity:0,scale:0.95,y:20 }}
               style={{ background:'var(--bg-2)',border:'1px solid var(--bg-4)',
-                borderRadius:'var(--radius-xl)',width:'100%',maxWidth:480,
+                borderRadius:'var(--radius-xl)',width:'100%',maxWidth:620,
                 boxShadow:'var(--shadow-float)',overflow:'hidden' }}>
               <div style={{ padding:'22px 26px 18px',borderBottom:'1px solid var(--bg-4)',
                 display:'flex',alignItems:'center',justifyContent:'space-between' }}>
                 <div>
                   <div style={{ fontSize:17,fontWeight:700,color:'var(--label)' }}>➕ Add New Admin</div>
-                  <div style={{ fontSize:13,color:'var(--label-4)',marginTop:2 }}>Email and password required</div>
+                  <div style={{ fontSize:13,color:'var(--label-4)',marginTop:2 }}>Credentials + Identity documents (Vishnu-only)</div>
                 </div>
                 <button onClick={() => setShowAddAdmin(false)}
                   style={{ width:30,height:30,borderRadius:'50%',background:'var(--bg-3)',
@@ -1037,17 +1099,17 @@ export default function VishnuDashboard() {
                     color:'var(--label-3)',display:'flex',alignItems:'center',justifyContent:'center' }}>✕</button>
               </div>
               <form onSubmit={handleAddAdmin}
-                style={{ padding:'22px 26px',display:'flex',flexDirection:'column',gap:14 }}>
+                style={{ padding:'22px 26px',display:'flex',flexDirection:'column',gap:14,
+                  maxHeight:'72vh', overflowY:'auto' }}>
+
+                {/* ── Login credentials ── */}
+                <div style={{ fontSize:11,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'0.7px' }}>
+                  Login Credentials
+                </div>
                 <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
                   {[
                     { k:'email',       label:'Email Address *', ph:'admin@mishracare.com', type:'email'    },
                     { k:'password',    label:'Password *',      ph:'Strong password',      type:'password' },
-                    { k:'full_name',   label:'Full Name *',     ph:'Ramesh Kumar'                          },
-                    { k:'phone',       label:'Phone',           ph:'+91 98765 43210'                       },
-                    { k:'city',        label:'City',            ph:'Greater Noida'                         },
-                    { k:'state',       label:'State',           ph:'Uttar Pradesh'                         },
-                    { k:'region',      label:'Region',          ph:'NCR'                                   },
-                    { k:'designation', label:'Designation',     ph:'Area Admin'                            },
                   ].map(f => (
                     <div key={f.k} style={{ display:'flex',flexDirection:'column',gap:5 }}>
                       <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)' }}>{f.label}</label>
@@ -1062,6 +1124,106 @@ export default function VishnuDashboard() {
                     </div>
                   ))}
                 </div>
+
+                {/* ── Personal info ── */}
+                <div style={{ fontSize:11,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'0.7px',marginTop:4 }}>
+                  Personal Information
+                </div>
+                <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
+                  {[
+                    { k:'full_name',         label:'Full Name *',      ph:'Ramesh Kumar'           },
+                    { k:'phone',             label:'Phone',            ph:'+91 98765 43210'        },
+                    { k:'date_of_birth',     label:'Date of Birth',    ph:'',  type:'date'         },
+                    { k:'city',              label:'City',             ph:'Greater Noida'          },
+                    { k:'state',             label:'State',            ph:'Uttar Pradesh'          },
+                    { k:'region',            label:'Region',           ph:'NCR'                    },
+                    { k:'designation',       label:'Designation',      ph:'Area Admin'             },
+                  ].map(f => (
+                    <div key={f.k} style={{ display:'flex',flexDirection:'column',gap:5 }}>
+                      <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)' }}>{f.label}</label>
+                      <input type={f.type||'text'} value={newAdmin[f.k]}
+                        onChange={e => setAdminField(f.k, e.target.value)} placeholder={f.ph}
+                        style={{ padding:'9px 12px',border:`1.5px solid ${addErr[f.k]?'var(--accent)':'var(--bg-4)'}`,
+                          borderRadius:10,fontSize:13,fontFamily:'inherit',color:'var(--label)',
+                          background:'var(--bg-3)',outline:'none' }}
+                        onFocus={e=>e.target.style.borderColor='#7c3aed'}
+                        onBlur={e=>e.target.style.borderColor=addErr[f.k]?'var(--accent)':'var(--bg-4)'} />
+                    </div>
+                  ))}
+                  <div style={{ gridColumn:'1/-1', display:'flex',flexDirection:'column',gap:5 }}>
+                    <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)' }}>Permanent Address</label>
+                    <textarea value={newAdmin.permanent_address}
+                      onChange={e => setAdminField('permanent_address', e.target.value)}
+                      placeholder="Full permanent address…"
+                      style={{ padding:'9px 12px',border:'1.5px solid var(--bg-4)',
+                        borderRadius:10,fontSize:13,fontFamily:'inherit',color:'var(--label)',
+                        background:'var(--bg-3)',outline:'none',minHeight:58,resize:'vertical' }} />
+                  </div>
+                </div>
+
+                {/* ── Identity numbers ── */}
+                <div style={{ fontSize:11,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'0.7px',marginTop:4 }}>
+                  Identity Numbers
+                </div>
+                <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
+                  {[
+                    { k:'aadhar_number', label:'Aadhar Number', ph:'XXXX XXXX XXXX' },
+                    { k:'pan_number',    label:'PAN Number',    ph:'ABCDE1234F'     },
+                  ].map(f => (
+                    <div key={f.k} style={{ display:'flex',flexDirection:'column',gap:5 }}>
+                      <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)' }}>{f.label}</label>
+                      <input value={newAdmin[f.k]}
+                        onChange={e => setAdminField(f.k, e.target.value)} placeholder={f.ph}
+                        style={{ padding:'9px 12px',border:'1.5px solid var(--bg-4)',
+                          borderRadius:10,fontSize:13,fontFamily:'inherit',color:'var(--label)',
+                          background:'var(--bg-3)',outline:'none' }}
+                        onFocus={e=>e.target.style.borderColor='#7c3aed'}
+                        onBlur={e=>e.target.style.borderColor='var(--bg-4)'} />
+                    </div>
+                  ))}
+                </div>
+
+                {/* ── Documents ── */}
+                <div style={{ fontSize:11,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'0.7px',marginTop:4 }}>
+                  Documents <span style={{ fontWeight:400,textTransform:'none',letterSpacing:0,color:'var(--label-4)',fontSize:10 }}>(visible to Vishnu only)</span>
+                </div>
+                <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:10 }}>
+                  {[
+                    { k:'photo',        label:'Profile Photo'            },
+                    { k:'aadhar_photo', label:'Aadhar Card Photo'        },
+                    { k:'pan_photo',    label:'PAN Card Photo'           },
+                    { k:'id_proof',     label:'Other Govt ID (optional)' },
+                    { k:'other_doc',    label:'Any Other Document'       },
+                  ].map(f => (
+                    <div key={f.k}>
+                      <label style={{ fontSize:11,fontWeight:600,color:'var(--label-3)',display:'block',marginBottom:4 }}>{f.label}</label>
+                      {!adminDocs[f.k] ? (
+                        <label style={{ display:'flex',alignItems:'center',gap:8,padding:'8px 12px',
+                          border:'1.5px dashed var(--bg-4)',borderRadius:9,cursor:'pointer',
+                          background:'var(--bg-3)',fontSize:12,color:'var(--label-4)' }}>
+                          <span>📎</span> Choose file
+                          <input type="file" accept="image/*,application/pdf"
+                            style={{ display:'none' }}
+                            onChange={e => {
+                              const file = e.target.files[0];
+                              if (file) setAdminDocs(p => ({ ...p, [f.k]: file }));
+                            }} />
+                        </label>
+                      ) : (
+                        <div style={{ display:'flex',alignItems:'center',gap:8,padding:'6px 10px',
+                          background:'#F0FDF4',border:'1px solid #BBF7D0',borderRadius:9,fontSize:11 }}>
+                          <span>✓</span>
+                          <span style={{ flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:'#15803D',fontWeight:600 }}>
+                            {adminDocs[f.k].name}
+                          </span>
+                          <button type="button" onClick={() => setAdminDocs(p => ({ ...p, [f.k]:null }))}
+                            style={{ background:'none',border:'none',cursor:'pointer',color:'#B91C1C',fontSize:13 }}>✕</button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
                 {addErr.submit && (
                   <div style={{ padding:'10px 14px',background:'#FEE2E2',border:'1px solid #FECACA',
                     borderRadius:8,fontSize:13,color:'#B91C1C' }}>⚠️ {addErr.submit}</div>

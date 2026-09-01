@@ -18,6 +18,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { exitFullscreen } from '../utils/fullscreen';
 
 // ── Role theme tokens ─────────────────────────────────────────────────────────
 const THEMES = {
@@ -171,7 +172,7 @@ export default function AppShell({
             display:'none' }} className="username-text">
             {userName}
           </span>
-          <button onClick={onLogout}
+          <button onClick={() => { exitFullscreen().catch(()=>{}); onLogout(); }}
             style={{ background:'rgba(185,28,28,0.08)', border:'1px solid rgba(185,28,28,0.2)',
               color:'#B91C1C', padding:'6px 14px', borderRadius:8, fontSize:12,
               fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all 0.15s' }}
