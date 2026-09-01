@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../utils/supabase';
 import { generateOTP, verifyOTP, sendOTPEmail } from '../utils/otp';
 import { saveSession } from '../utils/session';
-import { enterFullscreen } from '../utils/fullscreen';
+import { enterFullscreen, startFullscreenGuard } from '../utils/fullscreen';
 import OTPInput from '../components/OTPInput';
 import Toast from '../components/Toast';
 import VishnuLogin from './VishnuLogin';
@@ -178,7 +178,7 @@ export default function Login() {
         const name = data.full_name || data.email;
         saveSession({ role: 'store_manager', email: email.trim().toLowerCase(), name });
         showToast('Welcome back! 🌱', 'success');
-        enterFullscreen().catch(() => {});
+        enterFullscreen().catch(() => {}).then(() => startFullscreenGuard());
         setTimeout(() => navigate('/store/dashboard'), 800);
       }
     } catch (err) {
@@ -201,7 +201,7 @@ export default function Login() {
     if (!valid) { setOtpError(true); showToast('Incorrect OTP.', 'error'); return; }
     saveSession({ role, email: email.trim().toLowerCase(), name: userName });
     showToast('Login successful!', 'success');
-    enterFullscreen().catch(() => {});
+    enterFullscreen().catch(() => {}).then(() => startFullscreenGuard());
     setTimeout(() => navigate(role === 'admin' ? '/admin/dashboard' : '/store/dashboard'), 800);
   };
 
