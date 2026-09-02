@@ -146,7 +146,7 @@ export default function AppShell({
           <span style={{ fontSize:20 }}>{theme.icon}</span>
           <span style={{ fontWeight:800, fontSize:15, color:'var(--label)',
             letterSpacing:'-0.3px' }}>
-            Mishra<span style={{ color:theme.accent }}>Care</span>
+            JanSwasthya
           </span>
           <span style={{ fontSize:10, fontWeight:700, padding:'2px 9px',
             borderRadius:20, textTransform:'uppercase', letterSpacing:'0.5px',

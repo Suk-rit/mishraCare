@@ -279,7 +279,7 @@ export default function Login() {
               🌿
             </motion.div>
             <div style={{ fontSize: 26, fontWeight: 800, color: '#1B4D1F', letterSpacing: '-0.5px', marginBottom: 2 }}>
-              Mishra<span style={{ color: '#2E7D32' }}>Care</span>
+              JanSwasthya
             </div>
             <div style={{ fontSize: 11, color: '#66BB6A', letterSpacing: '1.8px', textTransform: 'uppercase', fontWeight: 600 }}>
               Pharmacy ERP

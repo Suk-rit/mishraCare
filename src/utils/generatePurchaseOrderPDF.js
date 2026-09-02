@@ -239,7 +239,7 @@ export function generatePurchaseOrderPDF({ bill, admin, devta, batches, printNow
     <div class="brand">
       <div class="brand-icon">💊</div>
       <div>
-        <div class="brand-name">Mishra<span>Care</span></div>
+        <div class="brand-name">JanSwasthya</div>
         <div class="brand-sub">Pharmacy ERP · Purchase Order Bill</div>
       </div>
     </div>
