@@ -1,5 +1,5 @@
 -- ============================================================
--- MishraCare — Store Employees / Helpers
+-- JanSwasthya — Store Employees / Helpers
 -- Submitted by store manager, approved/rejected by admin
 -- ============================================================
 

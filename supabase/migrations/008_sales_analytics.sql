@@ -1,5 +1,5 @@
 -- ============================================================
--- MishraCare — Sales, Billing, Expenses & Analytics
+-- JanSwasthya — Sales, Billing, Expenses & Analytics
 -- ============================================================
 
 -- Add selling_price to store_inventory

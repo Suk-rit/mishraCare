@@ -1,5 +1,5 @@
 -- ============================================================
--- MishraCare — Migration 013: Admin Region Expenses + Cash Register
+-- JanSwasthya — Migration 013: Admin Region Expenses + Cash Register
 --
 -- 1. admin_expenses  — admin-level costs (warehouse staff, travel,
 --                      utilities, inventory transport, misc)

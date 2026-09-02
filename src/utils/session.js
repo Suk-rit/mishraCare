@@ -1,4 +1,4 @@
-const SESSION_KEY = 'mishracare_session';
+const SESSION_KEY = 'janswasthya_session';
 
 /**
  * Save session to localStorage so it persists across browser tabs and restarts.

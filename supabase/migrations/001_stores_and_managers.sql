@@ -1,5 +1,5 @@
 -- ============================================================
--- MishraCare Pharmacy ERP — Stores & Store Managers Schema
+-- JanSwasthya Pharmacy ERP — Stores & Store Managers Schema
 -- ============================================================
 
 -- ── STORES ──────────────────────────────────────────────────

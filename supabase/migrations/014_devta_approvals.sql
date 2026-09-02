@@ -1,5 +1,5 @@
 -- ============================================================
--- MishraCare — Migration 014: Devta Approval Flows
+-- JanSwasthya — Migration 014: Devta Approval Flows
 --
 -- 1. admin_team       — admin's warehouse/office staff requests (→ Devta)
 -- 2. notifications    — in-app alerts for admins (e.g. new store assigned)

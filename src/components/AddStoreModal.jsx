@@ -216,7 +216,7 @@ export default function AddStoreModal({ onClose, onSuccess, adminsList = null, p
                 <div className="form-section">
                   <div className="form-section-title">Basic Information</div>
                   <div className="form-grid">
-                    <Field {...fp} name="store_name"      label="Store Name"       required placeholder="MishraCare Pharmacy" />
+                    <Field {...fp} name="store_name"      label="Store Name"       required placeholder="JanSwasthya Pharmacy" />
                     <Field {...fp} name="rdl_number"      label="RDL Number"       required placeholder="DL-XXX-XXXXXX" />
                     <Field {...fp} name="gstin"           label="GSTIN"                     placeholder="22AAAAA0000A1Z5" />
                     <Field {...fp} name="established_date" label="Established Date" type="date" />

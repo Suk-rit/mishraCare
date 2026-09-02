@@ -368,7 +368,7 @@ export function generatePurchaseOrderPDF({ bill, admin, devta, batches, printNow
 
   <!-- Footer -->
   <div class="footer">
-    MishraCare Pharmacy ERP &nbsp;·&nbsp; ${bill.bill_number} &nbsp;·&nbsp;
+    JanSwasthya Pharmacy ERP &nbsp;·&nbsp; ${bill.bill_number} &nbsp;·&nbsp;
     This document is for internal records only.
   </div>
 

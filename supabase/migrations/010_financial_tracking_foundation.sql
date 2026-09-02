@@ -1,5 +1,5 @@
 -- ============================================================
--- MishraCare — Migration 010: Financial Tracking Foundation
+-- JanSwasthya — Migration 010: Financial Tracking Foundation
 --
 -- PURPOSE: Lay the groundwork for complete cost/revenue/profit
 -- tracking across the entire chain. Nothing is computed here —

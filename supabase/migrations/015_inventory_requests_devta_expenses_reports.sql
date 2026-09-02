@@ -1,5 +1,5 @@
 -- ============================================================
--- MishraCare — Migration 015
+-- JanSwasthya — Migration 015
 -- 1. inventory_requests  — store manager requests medicine from admin
 -- 2. devta_expenses      — devta's own operational expenses
 -- 3. vishnu_reports      — reports created by Vishnu with notes

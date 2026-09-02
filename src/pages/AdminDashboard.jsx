@@ -11,6 +11,7 @@ import AddStock from './AddStock';
 import IssueResolution from './IssueResolution';
 import AdminAnalytics from './AdminAnalytics';
 import AppShell from '../components/AppShell';
+import SalaryPaymentSection, { SALARY_PAYMENT_DEFAULTS, salaryPaymentFields } from '../components/SalaryPaymentSection';
 import '../styles/login.css';
 import '../styles/stores.css';
 
@@ -87,7 +88,7 @@ export default function AdminDashboard() {
       navItems={NAV}
       active={active}
       onNav={(id) => { setActive(id); setSelectedStore(null); }}
-      title="MishraCare"
+      title="JanSwasthya"
       userName={session.name || session.email}
       onLogout={handleLogout}
       headerRight={
@@ -112,7 +113,7 @@ export default function AdminDashboard() {
                   <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--label)', letterSpacing: '-0.4px', marginBottom: 4 }}>
                     Good day, <span style={{ color: 'var(--accent)' }}>{session.name || 'Admin'}</span> 👋
                   </div>
-                  <div style={{ fontSize: 14, color: 'var(--label-4)' }}>Here's your MishraCare ERP overview.</div>
+                  <div style={{ fontSize: 14, color: 'var(--label-4)' }}>Here's your JanSwasthya ERP overview.</div>
                 </div>
 
                 {/* Live stat cards */}
@@ -229,6 +230,7 @@ const STAFF_INITIAL = {
   designation:'Warehouse Staff', employment_type:'full_time',
   joining_date: new Date().toISOString().split('T')[0],
   salary:'', salary_type:'monthly', shift:'day',
+  ...SALARY_PAYMENT_DEFAULTS,
 };
 
 function AdminStaffTab({ adminEmail }) {
@@ -297,6 +299,7 @@ function AdminStaffTab({ adminEmail }) {
         salary:          form.salary ? parseFloat(form.salary) : null,
         salary_type:     form.salary_type,
         shift:           form.shift,
+        ...salaryPaymentFields(form),
         photo_url:       urls.photo,
         aadhar_photo_url:urls.aadhar_photo,
         id_proof_url:    urls.id_proof,
@@ -386,6 +389,10 @@ function AdminStaffTab({ adminEmail }) {
               </div>
               <FileUpload label="Aadhar Photo" value={files.aadhar_photo} onChange={v => setFile('aadhar_photo', v)} />
               <FileUpload label="ID Proof (optional)" value={files.id_proof} onChange={v => setFile('id_proof', v)} />
+            </div>
+
+            <div style={{ marginTop:14 }}>
+              <SalaryPaymentSection form={form} onChange={(k,v) => setF(k,v)} />
             </div>
 
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:18 }}>

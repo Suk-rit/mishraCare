@@ -1,5 +1,5 @@
 -- ============================================================
--- MishraCare — Migration 009: Batch Approval Flow
+-- JanSwasthya — Migration 009: Batch Approval Flow
 -- 
 -- What exists already (DO NOT recreate):
 --   ✓ medicines           (004_medicines.sql)

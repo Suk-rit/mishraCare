@@ -1,5 +1,5 @@
 -- ============================================================
--- MishraCare — Migration 012: Discount on Batches + Doctors Table
+-- JanSwasthya — Migration 012: Discount on Batches + Doctors Table
 --
 -- 1. discount_percent on medicine_batches  (set by admin when adding stock)
 -- 2. discount_percent on store_inventory   (carried over from batch on transfer)

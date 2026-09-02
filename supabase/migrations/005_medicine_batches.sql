@@ -1,5 +1,5 @@
 -- ============================================================
--- MishraCare — Medicine Batches / Stock
+-- JanSwasthya — Medicine Batches / Stock
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS public.medicine_batches (

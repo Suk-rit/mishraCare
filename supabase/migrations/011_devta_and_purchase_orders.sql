@@ -1,5 +1,5 @@
 -- ============================================================
--- MishraCare — Migration 011: Devta User + Purchase Order Bills
+-- JanSwasthya — Migration 011: Devta User + Purchase Order Bills
 --
 -- 1. devta table         — the verification/approval user
 -- 2. purchase_order_bills — PDF bill records generated on approval
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS public.devta (
 -- Seed devta users
 INSERT INTO public.devta (name, email, password)
 VALUES
-  ('Devta',       'devta@mishracare.com', 'devta@123'),
+  ('Devta',       'devta@janswasthya.com', 'devta@123'),
   ('Rohit Mishra','rohitmishra@gmail.com','Rohit@321')
 ON CONFLICT (email) DO NOTHING;
 

@@ -293,7 +293,7 @@ export default function DevtaLogin({ onClose }) {
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="devta@mishracare.com"
+                placeholder="devta@janswasthya.com"
                 autoFocus
                 style={inputStyle(focusedField === 'email')}
                 onFocus={() => setFocusedField('email')}

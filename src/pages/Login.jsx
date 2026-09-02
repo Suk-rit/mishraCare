@@ -312,7 +312,7 @@ export default function Login() {
 
                 <form onSubmit={handleLogin} noValidate>
                   <EarthInput icon="✉️" type="email"
-                    placeholder={role === 'admin' ? 'admin@mishracare.com' : 'store@mishracare.com'}
+                    placeholder={role === 'admin' ? 'admin@janswasthya.com' : 'store@janswasthya.com'}
                     value={email} onChange={setEmail} error={fieldErr.email} autoComplete="email" />
                   <EarthInput icon="🔑" type="password"
                     placeholder="Enter your password"

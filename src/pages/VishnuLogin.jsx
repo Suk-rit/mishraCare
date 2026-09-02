@@ -263,7 +263,7 @@ export default function VishnuLogin({ onClose }) {
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 6 }}>Email</label>
                   <input type="email" value={email} onChange={e => setEmail(e.target.value)} autoFocus
-                    placeholder="vishnu@mishracare.com"
+                    placeholder="vishnu@janswasthya.com"
                     style={{ width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.08)', border: '1.5px solid rgba(255,255,255,0.15)', borderRadius: 12, fontSize: 14, color: '#fff', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
                     onFocus={e => e.target.style.borderColor = 'rgba(180,130,255,0.8)'}
                     onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.15)'} />

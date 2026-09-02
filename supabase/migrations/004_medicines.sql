@@ -1,5 +1,5 @@
 -- ============================================================
--- MishraCare — Medicine / Product Catalog
+-- JanSwasthya — Medicine / Product Catalog
 -- Master list only — no batch/expiry/stock (those go in inventory)
 -- ============================================================
 

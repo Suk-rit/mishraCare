@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { supabase } from '../utils/supabase';
 import { uploadFiles } from '../utils/storage';
 import FileUpload from './FileUpload';
+import SalaryPaymentSection, { SALARY_PAYMENT_DEFAULTS, salaryPaymentFields } from './SalaryPaymentSection';
 
 // ── Field component defined OUTSIDE the modal so it never remounts on re-render ──
 function Field({ name, label, required, placeholder, type = 'text', form, errors, onChange }) {
@@ -28,6 +29,7 @@ const INITIAL = {
   designation: 'Store Manager',
   joining_date: new Date().toISOString().split('T')[0],
   salary: '', salary_type: 'monthly', employment_type: 'full_time',
+  ...SALARY_PAYMENT_DEFAULTS,
 };
 
 export default function AddManagerModal({ store, onClose, onSuccess }) {
@@ -82,6 +84,7 @@ export default function AddManagerModal({ store, onClose, onSuccess }) {
         salary:           form.salary ? parseFloat(form.salary) : null,
         salary_type:      form.salary_type,
         employment_type:  form.employment_type,
+        ...salaryPaymentFields(form),
         photo_url:        urls.photo,
         aadhar_photo_url: urls.aadhar_photo,
         id_proof_url:     urls.id_proof,
@@ -124,7 +127,7 @@ export default function AddManagerModal({ store, onClose, onSuccess }) {
           <div className="form-section">
             <div className="form-section-title">Login Credentials</div>
             <div className="form-grid">
-              <Field {...fp} name="email"    label="Email Address" required placeholder="manager@mishracare.com" type="email" />
+              <Field {...fp} name="email"    label="Email Address" required placeholder="manager@janswasthya.com" type="email" />
               <Field {...fp} name="password" label="Password"      required placeholder="Set a strong password"  type="password" />
             </div>
           </div>
@@ -203,7 +206,12 @@ export default function AddManagerModal({ store, onClose, onSuccess }) {
 
           {/* Documents */}
           <div className="form-section">
-            <div className="form-section-title">Documents & Photos</div>
+            <div className="form-section-title">Salary Payment Details</div>
+            <SalaryPaymentSection form={form} onChange={setField} />
+          </div>
+
+          <div className="form-section">
+            <div className="form-section-title">Documents &amp; Photos</div>
             <div className="form-grid">
               <div>
                 <FileUpload label="Profile Photo" required value={files.photo} onChange={v => setFile('photo', v)} accept="image/*" />

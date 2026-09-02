@@ -1,5 +1,5 @@
 -- ============================================================
--- MishraCare — Stock Transfers + Store Inventory
+-- JanSwasthya — Stock Transfers + Store Inventory
 -- ============================================================
 
 -- ── Store Inventory ───────────────────────────────────────────

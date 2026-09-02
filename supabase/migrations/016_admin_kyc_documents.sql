@@ -1,5 +1,5 @@
 -- ============================================================
--- MishraCare — Migration 016: Admin KYC Documents
+-- JanSwasthya — Migration 016: Admin KYC Documents
 -- Adds identity + document fields to admins table.
 -- These are visible to Vishnu only.
 -- ============================================================

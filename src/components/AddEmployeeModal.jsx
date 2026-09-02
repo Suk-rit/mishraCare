@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { supabase } from '../utils/supabase';
 import { uploadFiles } from '../utils/storage';
 import FileUpload from './FileUpload';
+import SalaryPaymentSection, { SALARY_PAYMENT_DEFAULTS, salaryPaymentFields } from './SalaryPaymentSection';
 
 // ── Field — defined outside to prevent remount on re-render ──────────────────
 function Field({ name, label, required, placeholder, type = 'text', form, errors, onChange }) {
@@ -23,6 +24,7 @@ const INITIAL = {
   designation: 'Helper', employment_type: 'full_time',
   joining_date: new Date().toISOString().split('T')[0],
   salary: '', salary_type: 'monthly', shift: 'day',
+  ...SALARY_PAYMENT_DEFAULTS,
 };
 
 export default function AddEmployeeModal({ store, manager, onClose, onSuccess }) {
@@ -75,6 +77,7 @@ export default function AddEmployeeModal({ store, manager, onClose, onSuccess })
         salary:          form.salary ? parseFloat(form.salary) : null,
         salary_type:     form.salary_type,
         shift:           form.shift,
+        ...salaryPaymentFields(form),
         photo_url:       urls.photo,
         aadhar_photo_url:urls.aadhar_photo,
         id_proof_url:    urls.id_proof,
@@ -186,6 +189,11 @@ export default function AddEmployeeModal({ store, manager, onClose, onSuccess })
                 </select>
               </div>
             </div>
+          </div>
+
+          <div className="form-section">
+            <div className="form-section-title">Salary Payment Details</div>
+            <SalaryPaymentSection form={form} onChange={setField} />
           </div>
 
           <div className="form-section">

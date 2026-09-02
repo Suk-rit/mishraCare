@@ -90,7 +90,7 @@ function printBill({ bill, items, customer, doctor, store, payments }) {
 
 <div class="header">
   <div>
-    <div class="company-name">MishraCare Pharmacy</div>
+    <div class="company-name">JanSwasthya Pharmacy</div>
     <div style="font-size:10px;color:#555;margin-top:3px">${store?.store_name || ''}</div>
     <div style="font-size:10px;color:#555">${[store?.address_line1, store?.city, store?.state].filter(Boolean).join(', ')}</div>
     ${store?.gstin ? `<div style="font-size:10px;color:#555">GSTIN: ${store.gstin}</div>` : ''}
@@ -151,7 +151,7 @@ function printBill({ bill, items, customer, doctor, store, payments }) {
 </div>
 
 <div class="footer">
-  Thank you for choosing MishraCare Pharmacy · This is a computer-generated bill · ${bill.bill_number}
+  Thank you for choosing JanSwasthya Pharmacy · This is a computer-generated bill · ${bill.bill_number}
 </div>
 
 <script>window.onload=function(){setTimeout(function(){window.print();},400);};<\/script>

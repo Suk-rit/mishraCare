@@ -80,7 +80,7 @@ export default function AppShell({
   navItems = [],
   active,
   onNav,
-  title = 'MishraCare',
+  title = 'JanSwasthya',
   userName = '',
   onLogout,
   children,

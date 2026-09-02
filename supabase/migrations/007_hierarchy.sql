@@ -1,5 +1,5 @@
 -- ============================================================
--- MishraCare — Admin hierarchy + issue resolution
+-- JanSwasthya — Admin hierarchy + issue resolution
 -- ============================================================
 
 -- Add region/location to admins

@@ -7,6 +7,7 @@ import { getDateRange } from '../utils/analytics';
 import RefreshButton from '../components/RefreshButton';
 import AppShell from '../components/AppShell';
 import { uploadFiles } from '../utils/storage';
+import SalaryPaymentSection, { SALARY_PAYMENT_DEFAULTS, salaryPaymentFields } from '../components/SalaryPaymentSection';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', { maximumFractionDigits:0 }); }
@@ -653,7 +654,7 @@ export default function VishnuDashboard() {
   const [expandStore,  setExpandStore]  = useState({});
   const [stats,        setStats]        = useState({ admins:0, stores:0, managers:0, employees:0 });
   const [showAddAdmin, setShowAddAdmin] = useState(false);
-  const [newAdmin,     setNewAdmin]     = useState({ email:'', password:'', full_name:'', phone:'', city:'', state:'', region:'', designation:'Area Admin', aadhar_number:'', pan_number:'', date_of_birth:'', permanent_address:'' });
+  const [newAdmin, setNewAdmin] = useState({ email:'', password:'', full_name:'', phone:'', city:'', state:'', region:'', designation:'Area Admin', aadhar_number:'', pan_number:'', date_of_birth:'', permanent_address:'', ...SALARY_PAYMENT_DEFAULTS });
   const [adminDocs,    setAdminDocs]    = useState({ photo:null, aadhar_photo:null, pan_photo:null, id_proof:null, other_doc:null });
   const [addErr,       setAddErr]       = useState({});
   const [addLoading,   setAddLoading]   = useState(false);
@@ -724,10 +725,11 @@ export default function VishnuDashboard() {
         id_proof_url:      urls.id_proof     || null,
         other_doc_url:     urls.other_doc    || null,
         is_active:         true,
+        ...salaryPaymentFields(newAdmin),
       });
       if (error) throw new Error(error.message);
       setShowAddAdmin(false);
-      setNewAdmin({ email:'', password:'', full_name:'', phone:'', city:'', state:'', region:'', designation:'Area Admin', aadhar_number:'', pan_number:'', date_of_birth:'', permanent_address:'' });
+      setNewAdmin({ email:'', password:'', full_name:'', phone:'', city:'', state:'', region:'', designation:'Area Admin', aadhar_number:'', pan_number:'', date_of_birth:'', permanent_address:'', ...SALARY_PAYMENT_DEFAULTS });
       setAdminDocs({ photo:null, aadhar_photo:null, pan_photo:null, id_proof:null, other_doc:null });
       setAddErr({});
       fetchAll();
@@ -1108,7 +1110,7 @@ export default function VishnuDashboard() {
                 </div>
                 <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
                   {[
-                    { k:'email',       label:'Email Address *', ph:'admin@mishracare.com', type:'email'    },
+                    { k:'email',       label:'Email Address *', ph:'admin@janswasthya.com', type:'email'    },
                     { k:'password',    label:'Password *',      ph:'Strong password',      type:'password' },
                   ].map(f => (
                     <div key={f.k} style={{ display:'flex',flexDirection:'column',gap:5 }}>
@@ -1182,6 +1184,12 @@ export default function VishnuDashboard() {
                     </div>
                   ))}
                 </div>
+
+                {/* ── Documents ── */}
+                <div style={{ fontSize:11,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'0.7px',marginTop:4 }}>
+                  Salary Payment Details
+                </div>
+                <SalaryPaymentSection form={newAdmin} onChange={(k,v) => setAdminField(k,v)} />
 
                 {/* ── Documents ── */}
                 <div style={{ fontSize:11,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'0.7px',marginTop:4 }}>

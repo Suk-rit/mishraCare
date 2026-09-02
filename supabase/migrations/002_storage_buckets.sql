@@ -1,4 +1,4 @@
--- ── Storage Buckets for MishraCare documents ─────────────────
+-- ── Storage Buckets for JanSwasthya documents ─────────────────
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES 
   ('store-documents',  'store-documents',  true, 10485760, -- 10MB
