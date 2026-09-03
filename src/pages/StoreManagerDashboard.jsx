@@ -220,7 +220,14 @@ export default function StoreManagerDashboard() {
                       </button>
                     </div>
                   ) : (
-                    <EmployeeList employees={employees.filter(e => e.status === 'approved')} />
+                    <EmployeeList
+                      employees={employees.filter(e => e.status === 'approved')}
+                      onInactive={async (emp) => {
+                        const newActive = emp.is_active === false;
+                        await supabase.from('employees').update({ is_active: newActive }).eq('id', emp.id);
+                        fetchData();
+                      }}
+                    />
                   )}
                 </motion.div>
               )}
@@ -393,18 +400,24 @@ function StoreIssueStatus({ storeId }) {
     </div>
   );
 }
-function EmployeeList({ employees, showStatus }) {
+function EmployeeList({ employees, showStatus, onInactive }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {employees.map(e => {
         const s = EMP_STATUS[e.status] || EMP_STATUS.pending;
         return (
-          <div key={e.id} style={{ background: 'var(--bg-2)', border: '1px solid var(--bg-4)', borderRadius: 'var(--radius-md)', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14, boxShadow: 'var(--shadow-sm)' }}>
+          <div key={e.id} style={{ background: 'var(--bg-2)', border: '1px solid var(--bg-4)', borderRadius: 'var(--radius-md)', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14, boxShadow: 'var(--shadow-sm)',
+            opacity: e.is_active === false ? 0.55 : 1 }}>
             <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'linear-gradient(135deg,#5856D6,#3A38A0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
               {e.full_name.slice(0, 2).toUpperCase()}
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--label)' }}>{e.full_name}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--label)', display:'flex', alignItems:'center', gap:8 }}>
+                {e.full_name}
+                {e.is_active === false && (
+                  <span style={{ fontSize:10, fontWeight:700, background:'#FEE2E2', color:'#B91C1C', padding:'2px 7px', borderRadius:20, border:'1px solid #FECACA' }}>Inactive</span>
+                )}
+              </div>
               <div style={{ fontSize: 12, color: 'var(--label-4)', marginTop: 1 }}>
                 {e.designation} · {e.phone}
                 {e.salary ? ` · ₹${Number(e.salary).toLocaleString()}/${e.salary_type === 'monthly' ? 'mo' : 'wk'}` : ''}
@@ -419,6 +432,16 @@ function EmployeeList({ employees, showStatus }) {
               <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20, textTransform: 'uppercase', background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
                 {s.label}
               </span>
+            )}
+            {!showStatus && onInactive && e.status === 'approved' && (
+              <button
+                onClick={() => onInactive(e)}
+                style={{ padding:'5px 12px', background: e.is_active === false ? '#DCFCE7' : '#FEE2E2',
+                  color: e.is_active === false ? '#15803D' : '#B91C1C',
+                  border:'none', borderRadius:8, fontSize:11, fontWeight:700,
+                  cursor:'pointer', fontFamily:'inherit', flexShrink:0 }}>
+                {e.is_active === false ? '✓ Activate' : 'Mark Inactive'}
+              </button>
             )}
           </div>
         );

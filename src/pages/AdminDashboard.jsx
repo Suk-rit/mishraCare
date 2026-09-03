@@ -324,6 +324,12 @@ function AdminStaffTab({ adminEmail }) {
     rejected: { bg:'#FEE2E2', color:'#B91C1C' },
   };
 
+  const handleToggleActive = async (member) => {
+    const newActive = member.is_active === false;
+    await supabase.from('admin_team').update({ is_active: newActive }).eq('id', member.id);
+    fetchTeam(adminId);
+  };
+
   return (
     <div style={{ padding:'24px 28px', maxWidth:900, margin:'0 auto', fontFamily:"'Inter',-apple-system,sans-serif" }}>
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:22, flexWrap:'wrap', gap:12 }}>
@@ -428,7 +434,7 @@ function AdminStaffTab({ adminEmail }) {
             return (
               <div key={m.id} style={{ background:'var(--bg-2)', border:'1px solid var(--bg-4)',
                 borderRadius:14, padding:'14px 18px', display:'flex', alignItems:'center',
-                gap:14, boxShadow:'var(--shadow-sm)' }}>
+                gap:14, boxShadow:'var(--shadow-sm)', opacity: m.is_active === false ? 0.55 : 1 }}>
                 <div style={{ width:42, height:42, borderRadius:12,
                   background:'linear-gradient(135deg,#7C3AED,#4F46E5)',
                   display:'flex', alignItems:'center', justifyContent:'center',
@@ -436,8 +442,14 @@ function AdminStaffTab({ adminEmail }) {
                   {m.full_name.slice(0,2).toUpperCase()}
                 </div>
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:14, fontWeight:700, color:'var(--label)', marginBottom:2 }}>
+                  <div style={{ fontSize:14, fontWeight:700, color:'var(--label)', marginBottom:2,
+                    display:'flex', alignItems:'center', gap:8 }}>
                     {m.full_name}
+                    {m.is_active === false && (
+                      <span style={{ fontSize:10, fontWeight:700, background:'#FEE2E2',
+                        color:'#B91C1C', padding:'2px 7px', borderRadius:20,
+                        border:'1px solid #FECACA' }}>Inactive</span>
+                    )}
                   </div>
                   <div style={{ fontSize:11, color:'var(--label-4)', display:'flex', gap:8, flexWrap:'wrap' }}>
                     <span>{m.designation}</span>
@@ -450,10 +462,22 @@ function AdminStaffTab({ adminEmail }) {
                     </div>
                   )}
                 </div>
-                <span style={{ fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:20,
-                  background:sc.bg, color:sc.color, flexShrink:0, textTransform:'capitalize' }}>
-                  {m.status}
-                </span>
+                <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                  {m.status === 'approved' && (
+                    <button onClick={() => handleToggleActive(m)}
+                      style={{ padding:'5px 12px',
+                        background: m.is_active === false ? '#DCFCE7' : '#FEE2E2',
+                        color:      m.is_active === false ? '#15803D' : '#B91C1C',
+                        border:'none', borderRadius:8, fontSize:11, fontWeight:700,
+                        cursor:'pointer', fontFamily:'inherit' }}>
+                      {m.is_active === false ? '✓ Activate' : 'Mark Inactive'}
+                    </button>
+                  )}
+                  <span style={{ fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:20,
+                    background:sc.bg, color:sc.color, textTransform:'capitalize' }}>
+                    {m.status}
+                  </span>
+                </div>
               </div>
             );
           })}

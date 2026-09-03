@@ -4,9 +4,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../utils/supabase';
 import { getSession, clearSession, saveSession } from '../utils/session';
 import { generatePurchaseOrderPDF } from '../utils/generatePurchaseOrderPDF';
-import { uploadFile } from '../utils/storage';
+import { uploadFile, uploadFiles } from '../utils/storage';
 import AddStoreModal from '../components/AddStoreModal';
+import AddManagerModal from '../components/AddManagerModal';
+import StoreSelector from '../components/StoreSelector';
 import AppShell from '../components/AppShell';
+import SalaryPaymentSection, { SALARY_PAYMENT_DEFAULTS, salaryPaymentFields } from '../components/SalaryPaymentSection';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const NAV = [
@@ -14,6 +17,7 @@ const NAV = [
   { id: 'approved',  icon: '✓',  label: 'Approved Bills'    },
   { id: 'employees', icon: '👥', label: 'People Requests'   },
   { id: 'stores',    icon: '🏪', label: 'Add Store'         },
+  { id: 'people',    icon: '👤', label: 'Admins & Managers' },
   { id: 'expenses',  icon: '💸', label: 'My Expenses'       },
 ];
 
@@ -410,6 +414,21 @@ export default function DevtaDashboard() {
   const [adminsList,    setAdminsList]    = useState([]);
   const [showAddStore,  setShowAddStore]  = useState(false);
 
+  // Admin & Manager addition tab
+  const [showAddAdmin,     setShowAddAdmin]     = useState(false);
+  const [showAddManager,   setShowAddManager]   = useState(false);
+  const [selectedStoreForManager, setSelectedStoreForManager] = useState(null);
+  const [newAdmin,         setNewAdmin]         = useState({ 
+    email:'', password:'', full_name:'', phone:'', city:'', state:'', region:'', 
+    designation:'Area Admin', aadhar_number:'', pan_number:'', date_of_birth:'', 
+    permanent_address:'', ...SALARY_PAYMENT_DEFAULTS 
+  });
+  const [adminDocs,        setAdminDocs]        = useState({ 
+    photo:null, aadhar_photo:null, pan_photo:null, id_proof:null, other_doc:null 
+  });
+  const [addAdminErr,      setAddAdminErr]      = useState({});
+  const [addAdminLoading,  setAddAdminLoading]  = useState(false);
+
   // Always resolve devta id from DB using email — never trust session.id alone
   // (old sessions saved before id was added will have session.id = undefined)
   const [devtaId, setDevtaId] = useState(session?.id || null);
@@ -422,19 +441,15 @@ export default function DevtaDashboard() {
       .select('id')
       .eq('email', session.email)
       .single()
-      .then(({ data }) => {
-        if (data?.id) {
-          setDevtaId(data.id);
-          // Patch the session so future loads don't need a DB hit
-          if (!session.id || session.id !== data.id) {
-            saveSession({ ...session, id: data.id });
-          }
-          // Re-fetch approved bills now that we have the correct devta id
-          fetchApprovedWithId(data.id);
-        }
+      .then(({ data, error }) => {
+        if (!error && data) setDevtaId(data.id);
       });
 
     fetchAll();
+    fetchPeopleRequests();
+    // Load admins list for the People tab
+    supabase.from('admins').select('id, full_name, email, city, state, region').eq('is_active', true).order('full_name')
+      .then(({ data }) => setAdminsList(data || []));
   }, []);
 
   const fetchAll = useCallback(async () => {
@@ -778,6 +793,64 @@ export default function DevtaDashboard() {
   const handleLogout = () => { clearSession(); navigate('/login'); };
 
   const initials = (session?.name || 'D').slice(0, 2).toUpperCase();
+
+  // ── Admin addition handler ───────────────────────────────────────────────────────
+  const setAdminField = (k, v) => setNewAdmin(p => ({ ...p, [k]:v }));
+
+  const handleAddAdmin = async (e) => {
+    e.preventDefault();
+    const errs = {};
+    if (!newAdmin.email.trim())     errs.email    = 'Required';
+    if (!newAdmin.password.trim())  errs.password = 'Required';
+    if (!newAdmin.full_name.trim()) errs.full_name= 'Required';
+    if (Object.keys(errs).length) { setAddAdminErr(errs); return; }
+    setAddAdminLoading(true);
+    try {
+      // Upload documents if provided
+      const urls = await uploadFiles('admin-documents', {
+        photo:       adminDocs.photo,
+        aadhar_photo:adminDocs.aadhar_photo,
+        pan_photo:   adminDocs.pan_photo,
+        id_proof:    adminDocs.id_proof,
+        other_doc:   adminDocs.other_doc,
+      }, 'admins');
+
+      const { error } = await supabase.from('admins').insert({
+        email:             newAdmin.email.trim().toLowerCase(),
+        password_hash:     newAdmin.password,
+        full_name:         newAdmin.full_name.trim(),
+        phone:             newAdmin.phone.trim()             || null,
+        city:              newAdmin.city.trim()              || null,
+        state:             newAdmin.state.trim()             || null,
+        region:            newAdmin.region.trim()            || null,
+        designation:       newAdmin.designation              || 'Area Admin',
+        aadhar_number:     newAdmin.aadhar_number.trim()     || null,
+        pan_number:        newAdmin.pan_number.trim().toUpperCase() || null,
+        date_of_birth:     newAdmin.date_of_birth            || null,
+        permanent_address: newAdmin.permanent_address.trim() || null,
+        photo_url:         urls.photo        || null,
+        aadhar_photo_url:  urls.aadhar_photo || null,
+        pan_photo_url:     urls.pan_photo    || null,
+        id_proof_url:      urls.id_proof     || null,
+        other_doc_url:     urls.other_doc    || null,
+        is_active:         true,
+        ...salaryPaymentFields(newAdmin),
+      });
+      if (error) throw new Error(error.message);
+      setShowAddAdmin(false);
+      setNewAdmin({ email:'', password:'', full_name:'', phone:'', city:'', state:'', region:'', designation:'Area Admin', aadhar_number:'', pan_number:'', date_of_birth:'', permanent_address:'', ...SALARY_PAYMENT_DEFAULTS });
+      setAdminDocs({ photo:null, aadhar_photo:null, pan_photo:null, id_proof:null, other_doc:null });
+      setAddAdminErr({});
+      showBannerMsg('✓ Admin added successfully!');
+      // Refresh admins list
+      supabase.from('admins').select('id, full_name, email, city, state, region').eq('is_active', true).order('full_name')
+        .then(({ data }) => setAdminsList(data || []));
+    } catch (err) {
+      setAddAdminErr({ submit: err.message });
+    } finally {
+      setAddAdminLoading(false);
+    }
+  };
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
@@ -1134,6 +1207,116 @@ export default function DevtaDashboard() {
                 </motion.div>
               )}
 
+              {/* ── People tab (Admins & Managers) ── */}
+              {active === 'people' && (
+                <motion.div key="people"
+                  initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
+                    marginBottom:20, flexWrap:'wrap', gap:10 }}>
+                    <div>
+                      <div style={{ fontSize:22, fontWeight:800, color:'#01579B', letterSpacing:'-0.3px', marginBottom:2 }}>
+                        👤 Admins & Managers
+                      </div>
+                      <div style={{ fontSize:13, color:'#4FC3F7' }}>
+                        Add new admins to manage regions, and store managers to run stores
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:16 }}>
+                    {/* Add Admin Card */}
+                    <motion.div 
+                      initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }}
+                      onClick={() => setShowAddAdmin(true)}
+                      style={{ background:'#fff', border:'1.5px solid #7C3AED', borderRadius:16,
+                        padding:'24px', cursor:'pointer', boxShadow:'0 4px 20px rgba(124,58,237,0.08)',
+                        transition:'all 0.2s' }}
+                      whileHover={{ y:-4, boxShadow:'0 8px 28px rgba(124,58,237,0.15)' }}>
+                      <div style={{ fontSize:40, marginBottom:12 }}>🛡️</div>
+                      <div style={{ fontSize:18, fontWeight:700, color:'#7C3AED', marginBottom:6 }}>
+                        Add Admin
+                      </div>
+                      <div style={{ fontSize:13, color:'#666', lineHeight:1.5 }}>
+                        Create a regional admin to manage stores in a specific area. Admins can add inventory, manage transfers, and oversee operations.
+                      </div>
+                      <div style={{ marginTop:16, padding:'8px 16px', background:'#F5F3FF',
+                        borderRadius:8, fontSize:12, fontWeight:600, color:'#7C3AED',
+                        display:'inline-block' }}>
+                        + Create Admin
+                      </div>
+                    </motion.div>
+
+                    {/* Add Store Manager Card */}
+                    <motion.div 
+                      initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.1 }}
+                      onClick={() => {
+                        if (adminsList.length === 0) {
+                          showBannerMsg('⚠️ Please add an admin first, then assign stores to them before adding managers.');
+                          return;
+                        }
+                        // Show store selection modal
+                        setSelectedStoreForManager('select');
+                      }}
+                      style={{ background:'#fff', border:'1.5px solid #0288D1', borderRadius:16,
+                        padding:'24px', cursor:'pointer', boxShadow:'0 4px 20px rgba(2,136,209,0.08)',
+                        transition:'all 0.2s' }}
+                      whileHover={{ y:-4, boxShadow:'0 8px 28px rgba(2,136,209,0.15)' }}>
+                      <div style={{ fontSize:40, marginBottom:12 }}>🌱</div>
+                      <div style={{ fontSize:18, fontWeight:700, color:'#0288D1', marginBottom:6 }}>
+                        Add Store Manager
+                      </div>
+                      <div style={{ fontSize:13, color:'#666', lineHeight:1.5 }}>
+                        Assign a manager to run a specific store. Managers handle billing, inventory requests, and day-to-day operations.
+                      </div>
+                      <div style={{ marginTop:16, padding:'8px 16px', background:'#E1F5FE',
+                        borderRadius:8, fontSize:12, fontWeight:600, color:'#0288D1',
+                        display:'inline-block' }}>
+                        + Create Manager
+                      </div>
+                    </motion.div>
+                  </div>
+
+                  {/* Existing Admins List */}
+                  <div style={{ marginTop:32 }}>
+                    <div style={{ fontSize:16, fontWeight:700, color:'#01579B', marginBottom:16 }}>
+                      Existing Admins ({adminsList.length})
+                    </div>
+                    {adminsList.length === 0 ? (
+                      <div style={{ textAlign:'center', padding:'40px 20px', background:'#F5F5F5',
+                        borderRadius:12, border:'1px solid #E0E0E0', color:'#666', fontSize:13 }}>
+                        No admins added yet
+                      </div>
+                    ) : (
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(250px,1fr))', gap:12 }}>
+                        {adminsList.map(admin => (
+                          <div key={admin.id} style={{ background:'#fff', border:'1px solid #E0E0E0',
+                            borderRadius:12, padding:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.05)' }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+                              <div style={{ width:36, height:36, borderRadius:'50%',
+                                background:'linear-gradient(135deg,#7C3AED,#4F46E5)',
+                                display:'flex', alignItems:'center', justifyContent:'center',
+                                fontSize:13, fontWeight:700, color:'#fff' }}>
+                                {admin.full_name.slice(0,2).toUpperCase()}
+                              </div>
+                              <div style={{ flex:1, minWidth:0 }}>
+                                <div style={{ fontSize:14, fontWeight:700, color:'#333', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                                  {admin.full_name}
+                                </div>
+                                <div style={{ fontSize:11, color:'#666' }}>{admin.email}</div>
+                              </div>
+                            </div>
+                            <div style={{ fontSize:12, color:'#666' }}>
+                              {admin.city && <span>📍 {admin.city}</span>}
+                              {admin.region && <span> · {admin.region}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
               {/* ── Devta Expenses tab ── */}
               {active === 'expenses' && (
                 <motion.div key="expenses"
@@ -1146,7 +1329,7 @@ export default function DevtaDashboard() {
                       </div>
                       <div style={{ fontSize:13, color:'#4FC3F7' }}>
                         Record your operational expenses — visible to Vishnu
-                      </div>
+ </div>
                     </div>
                     <button onClick={() => setShowExpenseForm(v => !v)}
                       style={{ padding:'9px 20px', background:'linear-gradient(135deg,#0288D1,#01579B)',
@@ -1327,6 +1510,232 @@ export default function DevtaDashboard() {
             onClose={() => setShowAddStore(false)}
             onSuccess={() => { setShowAddStore(false); showBannerMsg('✓ Store created and admin notified!'); }}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Add Admin Modal */}
+      <AnimatePresence>
+        {showAddAdmin && (
+          <div style={{ position:'fixed',inset:0,zIndex:200,background:'rgba(0,0,0,0.35)',
+            backdropFilter:'blur(6px)',display:'flex',alignItems:'center',
+            justifyContent:'center',padding:20 }}
+            onClick={e => e.target===e.currentTarget && setShowAddAdmin(false)}>
+            <motion.div initial={{ opacity:0,scale:0.95,y:20 }}
+              animate={{ opacity:1,scale:1,y:0 }} exit={{ opacity:0,scale:0.95,y:20 }}
+              style={{ background:'var(--bg-2)',border:'1px solid var(--bg-4)',
+                borderRadius:'var(--radius-xl)',width:'100%',maxWidth:620,
+                boxShadow:'var(--shadow-float)',overflow:'hidden' }}>
+              <div style={{ padding:'22px 26px 18px',borderBottom:'1px solid var(--bg-4)',
+                display:'flex',alignItems:'center',justifyContent:'space-between' }}>
+                <div>
+                  <div style={{ fontSize:17,fontWeight:700,color:'var(--label)' }}>➕ Add New Admin</div>
+                  <div style={{ fontSize:13,color:'var(--label-4)',marginTop:2 }}>Credentials + Identity documents</div>
+                </div>
+                <button onClick={() => setShowAddAdmin(false)}
+                  style={{ width:30,height:30,borderRadius:'50%',background:'var(--bg-3)',
+                    border:'1px solid var(--bg-4)',cursor:'pointer',fontSize:14,
+                    color:'var(--label-3)',display:'flex',alignItems:'center',justifyContent:'center' }}>✕</button>
+              </div>
+              <form onSubmit={handleAddAdmin}
+                style={{ padding:'22px 26px',display:'flex',flexDirection:'column',gap:14,
+                  maxHeight:'72vh', overflowY:'auto' }}>
+
+                {/* Login credentials */}
+                <div style={{ fontSize:11,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'0.7px' }}>
+                  Login Credentials
+                </div>
+                <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
+                  {[
+                    { k:'email',       label:'Email Address *', ph:'admin@janswasthya.com', type:'email'    },
+                    { k:'password',    label:'Password *',      ph:'Strong password',      type:'password' },
+                  ].map(f => (
+                    <div key={f.k} style={{ display:'flex',flexDirection:'column',gap:5 }}>
+                      <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)' }}>{f.label}</label>
+                      <input type={f.type||'text'} value={newAdmin[f.k]}
+                        onChange={e => setAdminField(f.k, e.target.value)} placeholder={f.ph}
+                        style={{ padding:'9px 12px',border:`1.5px solid ${addAdminErr[f.k]?'var(--accent)':'var(--bg-4)'}`,
+                          borderRadius:10,fontSize:13,fontFamily:'inherit',color:'var(--label)',
+                          background:'var(--bg-3)',outline:'none' }}
+                        onFocus={e=>e.target.style.borderColor='#7c3aed'}
+                        onBlur={e=>e.target.style.borderColor=addAdminErr[f.k]?'var(--accent)':'var(--bg-4)'} />
+                      {addAdminErr[f.k] && <span style={{ fontSize:11,color:'var(--error-text)' }}>{addAdminErr[f.k]}</span>}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Personal info */}
+                <div style={{ fontSize:11,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'0.7px',marginTop:4 }}>
+                  Personal Information
+                </div>
+                <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
+                  {[
+                    { k:'full_name',         label:'Full Name *',      ph:'Ramesh Kumar'           },
+                    { k:'phone',             label:'Phone',            ph:'+91 98765 43210'        },
+                    { k:'date_of_birth',     label:'Date of Birth',    ph:'',  type:'date'         },
+                    { k:'city',              label:'City',             ph:'Greater Noida'          },
+                    { k:'state',             label:'State',            ph:'Uttar Pradesh'          },
+                    { k:'region',            label:'Region',           ph:'NCR'                    },
+                    { k:'designation',       label:'Designation',      ph:'Area Admin'             },
+                  ].map(f => (
+                    <div key={f.k} style={{ display:'flex',flexDirection:'column',gap:5 }}>
+                      <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)' }}>{f.label}</label>
+                      <input type={f.type||'text'} value={newAdmin[f.k]}
+                        onChange={e => setAdminField(f.k, e.target.value)} placeholder={f.ph}
+                        style={{ padding:'9px 12px',border:`1.5px solid ${addAdminErr[f.k]?'var(--accent)':'var(--bg-4)'}`,
+                          borderRadius:10,fontSize:13,fontFamily:'inherit',color:'var(--label)',
+                          background:'var(--bg-3)',outline:'none' }}
+                        onFocus={e=>e.target.style.borderColor='#7c3aed'}
+                        onBlur={e=>e.target.style.borderColor=addAdminErr[f.k]?'var(--accent)':'var(--bg-4)'} />
+                    </div>
+                  ))}
+                  <div style={{ gridColumn:'1/-1', display:'flex',flexDirection:'column',gap:5 }}>
+                    <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)' }}>Permanent Address</label>
+                    <textarea value={newAdmin.permanent_address}
+                      onChange={e => setAdminField('permanent_address', e.target.value)}
+                      placeholder="Full permanent address…"
+                      style={{ padding:'9px 12px',border:'1.5px solid var(--bg-4)',
+                        borderRadius:10,fontSize:13,fontFamily:'inherit',color:'var(--label)',
+                        background:'var(--bg-3)',outline:'none',minHeight:58,resize:'vertical' }} />
+                  </div>
+                </div>
+
+                {/* Identity numbers */}
+                <div style={{ fontSize:11,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'0.7px',marginTop:4 }}>
+                  Identity Numbers
+                </div>
+                <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
+                  {[
+                    { k:'aadhar_number', label:'Aadhar Number', ph:'XXXX XXXX XXXX' },
+                    { k:'pan_number',    label:'PAN Number',    ph:'ABCDE1234F'     },
+                  ].map(f => (
+                    <div key={f.k} style={{ display:'flex',flexDirection:'column',gap:5 }}>
+                      <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)' }}>{f.label}</label>
+                      <input value={newAdmin[f.k]}
+                        onChange={e => setAdminField(f.k, e.target.value)} placeholder={f.ph}
+                        style={{ padding:'9px 12px',border:'1.5px solid var(--bg-4)',
+                          borderRadius:10,fontSize:13,fontFamily:'inherit',color:'var(--label)',
+                          background:'var(--bg-3)',outline:'none' }}
+                        onFocus={e=>e.target.style.borderColor='#7c3aed'}
+                        onBlur={e=>e.target.style.borderColor='var(--bg-4)'} />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Salary Payment Details */}
+                <div style={{ fontSize:11,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'0.7px',marginTop:4 }}>
+                  Salary Payment Details
+                </div>
+                <SalaryPaymentSection form={newAdmin} onChange={(k,v) => setAdminField(k,v)} />
+
+                {/* Documents */}
+                <div style={{ fontSize:11,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'0.7px',marginTop:4 }}>
+                  Documents
+                </div>
+                <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:10 }}>
+                  {[
+                    { k:'photo',        label:'Profile Photo'            },
+                    { k:'aadhar_photo', label:'Aadhar Card Photo'        },
+                    { k:'pan_photo',    label:'PAN Card Photo'           },
+                    { k:'id_proof',     label:'Other Govt ID (optional)' },
+                    { k:'other_doc',    label:'Any Other Document'       },
+                  ].map(f => (
+                    <div key={f.k}>
+                      <label style={{ fontSize:11,fontWeight:600,color:'var(--label-3)',display:'block',marginBottom:4 }}>{f.label}</label>
+                      {!adminDocs[f.k] ? (
+                        <label style={{ display:'flex',alignItems:'center',gap:8,padding:'8px 12px',
+                          border:'1.5px dashed var(--bg-4)',borderRadius:9,cursor:'pointer',
+                          background:'var(--bg-3)',fontSize:12,color:'var(--label-4)' }}>
+                          <span>📎</span> Choose file
+                          <input type="file" accept="image/*,application/pdf"
+                            style={{ display:'none' }}
+                            onChange={e => {
+                              const file = e.target.files[0];
+                              if (file) setAdminDocs(p => ({ ...p, [f.k]: file }));
+                            }} />
+                        </label>
+                      ) : (
+                        <div style={{ display:'flex',alignItems:'center',gap:8,padding:'6px 10px',
+                          background:'#F0FDF4',border:'1px solid #BBF7D0',borderRadius:9,fontSize:11 }}>
+                          <span>✓</span>
+                          <span style={{ flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:'#15803D',fontWeight:600 }}>
+                            {adminDocs[f.k].name}
+                          </span>
+                          <button type="button" onClick={() => setAdminDocs(p => ({ ...p, [f.k]:null }))}
+                            style={{ background:'none',border:'none',cursor:'pointer',color:'#B91C1C',fontSize:13 }}>✕</button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {addAdminErr.submit && (
+                  <div style={{ padding:'10px 14px',background:'#FEE2E2',border:'1px solid #FECACA',
+                    borderRadius:8,fontSize:13,color:'#B91C1C' }}>⚠️ {addAdminErr.submit}</div>
+                )}
+                <div style={{ display:'flex',gap:10,justifyContent:'flex-end',marginTop:4 }}>
+                  <button type="button" onClick={() => setShowAddAdmin(false)}
+                    style={{ background:'var(--bg-3)',border:'1px solid var(--bg-4)',
+                      color:'var(--label-3)',padding:'9px 20px',borderRadius:10,fontSize:13,
+                      fontWeight:600,cursor:'pointer',fontFamily:'inherit' }}>Cancel</button>
+                  <button type="submit" disabled={addAdminLoading}
+                    style={{ background:'linear-gradient(135deg,#7c3aed,#4f46e5)',color:'#fff',
+                      border:'none',padding:'9px 24px',borderRadius:10,fontSize:13,fontWeight:700,
+                      cursor:'pointer',fontFamily:'inherit',
+                      boxShadow:'0 3px 12px rgba(124,58,237,0.35)' }}>
+                    {addAdminLoading ? '⏳ Adding…' : '+ Add Admin'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Add Manager Modal */}
+      <AnimatePresence>
+        {showAddManager && selectedStoreForManager && selectedStoreForManager !== 'select' && (
+          <AddManagerModal
+            store={selectedStoreForManager}
+            onClose={() => { setShowAddManager(false); setSelectedStoreForManager(null); }}
+            onSuccess={() => { setShowAddManager(false); setSelectedStoreForManager(null); showBannerMsg('✓ Manager added successfully!'); }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Store Selection Modal for Manager */}
+      <AnimatePresence>
+        {selectedStoreForManager === 'select' && (
+          <div style={{ position:'fixed',inset:0,zIndex:200,background:'rgba(0,0,0,0.35)',
+            backdropFilter:'blur(6px)',display:'flex',alignItems:'center',
+            justifyContent:'center',padding:20 }}
+            onClick={e => e.target===e.currentTarget && setSelectedStoreForManager(null)}>
+            <motion.div initial={{ opacity:0,scale:0.95,y:20 }}
+              animate={{ opacity:1,scale:1,y:0 }} exit={{ opacity:0,scale:0.95,y:20 }}
+              style={{ background:'var(--bg-2)',border:'1px solid var(--bg-4)',
+                borderRadius:'var(--radius-xl)',width:'100%',maxWidth:500,
+                boxShadow:'var(--shadow-float)',overflow:'hidden' }}>
+              <div style={{ padding:'22px 26px 18px',borderBottom:'1px solid var(--bg-4)',
+                display:'flex',alignItems:'center',justifyContent:'space-between' }}>
+                <div>
+                  <div style={{ fontSize:17,fontWeight:700,color:'var(--label)' }}>🏪 Select Store</div>
+                  <div style={{ fontSize:13,color:'var(--label-4)',marginTop:2 }}>Choose a store to assign the manager</div>
+                </div>
+                <button onClick={() => setSelectedStoreForManager(null)}
+                  style={{ width:30,height:30,borderRadius:'50%',background:'var(--bg-3)',
+                    border:'1px solid var(--bg-4)',cursor:'pointer',fontSize:14,
+                    color:'var(--label-3)',display:'flex',alignItems:'center',justifyContent:'center' }}>✕</button>
+              </div>
+              <div style={{ padding:'22px 26px',maxHeight:'60vh',overflowY:'auto' }}>
+                <div style={{ display:'flex',flexDirection:'column',gap:10 }}>
+                  {/* Fetch stores and display them */}
+                  <StoreSelector onSelect={(store) => {
+                    setSelectedStoreForManager(store);
+                    setShowAddManager(true);
+                  }} />
+                </div>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </AppShell>
