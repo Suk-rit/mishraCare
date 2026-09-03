@@ -8,6 +8,7 @@ import { uploadFile, uploadFiles } from '../utils/storage';
 import AddStoreModal from '../components/AddStoreModal';
 import AddManagerModal from '../components/AddManagerModal';
 import StoreSelector from '../components/StoreSelector';
+import { sendWelcomeEmail } from '../utils/email';
 import AppShell from '../components/AppShell';
 import SalaryPaymentSection, { SALARY_PAYMENT_DEFAULTS, salaryPaymentFields } from '../components/SalaryPaymentSection';
 
@@ -837,6 +838,13 @@ export default function DevtaDashboard() {
         ...salaryPaymentFields(newAdmin),
       });
       if (error) throw new Error(error.message);
+      // Send welcome email (non-blocking)
+      sendWelcomeEmail({
+        email:    newAdmin.email.trim().toLowerCase(),
+        password: newAdmin.password,
+        name:     newAdmin.full_name.trim(),
+        role:     'admin',
+      });
       setShowAddAdmin(false);
       setNewAdmin({ email:'', password:'', full_name:'', phone:'', city:'', state:'', region:'', designation:'Area Admin', aadhar_number:'', pan_number:'', date_of_birth:'', permanent_address:'', ...SALARY_PAYMENT_DEFAULTS });
       setAdminDocs({ photo:null, aadhar_photo:null, pan_photo:null, id_proof:null, other_doc:null });

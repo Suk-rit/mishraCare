@@ -4,6 +4,7 @@ import { supabase } from '../utils/supabase';
 import { uploadFiles } from '../utils/storage';
 import FileUpload from './FileUpload';
 import SalaryPaymentSection, { SALARY_PAYMENT_DEFAULTS, salaryPaymentFields } from './SalaryPaymentSection';
+import { sendWelcomeEmail } from '../utils/email';
 
 // ── Field component defined OUTSIDE the modal so it never remounts on re-render ──
 function Field({ name, label, required, placeholder, type = 'text', form, errors, onChange }) {
@@ -91,6 +92,14 @@ export default function AddManagerModal({ store, onClose, onSuccess }) {
       });
 
       if (error) throw new Error(error.message);
+      // Send welcome email (non-blocking)
+      sendWelcomeEmail({
+        email:      form.email.trim().toLowerCase(),
+        password:   form.password,
+        name:       form.full_name.trim(),
+        role:       'store_manager',
+        store_name: store?.store_name || null,
+      });
       onSuccess();
     } catch (err) {
       alert('Error: ' + err.message);
