@@ -5,7 +5,6 @@ import { uploadFile } from '../utils/storage';
 
 const CATEGORIES = [
   { id:'inventory',    label:'📦 Inventory',    desc:'Stock purchase, damaged goods' },
-  { id:'salary',       label:'👤 Salary',        desc:'Employee/manager salaries'    },
   { id:'rent',         label:'🏢 Rent',           desc:'Shop/warehouse rent'          },
   { id:'utilities',    label:'⚡ Utilities',      desc:'Electricity, water, internet' },
   { id:'maintenance',  label:'🔧 Maintenance',    desc:'Repairs, equipment'           },

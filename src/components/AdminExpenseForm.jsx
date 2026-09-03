@@ -9,7 +9,6 @@ import { supabase } from '../utils/supabase';
 import { uploadFile } from '../utils/storage';
 
 const CATEGORIES = [
-  { id: 'staff_salary',          icon: '👤', label: 'Staff Salary'          },
   { id: 'inventory_transport',   icon: '🚚', label: 'Inventory Transport'   },
   { id: 'office_rent',           icon: '🏢', label: 'Office / Warehouse Rent'},
   { id: 'utilities',             icon: '💡', label: 'Utilities (Electric/Water)'},
@@ -78,7 +77,7 @@ function ProofUpload({ file, onChange }) {
 
 export default function AdminExpenseForm({ adminId, onClose, onSuccess }) {
   const [form, setForm] = useState({
-    category:       'miscellaneous',
+    category:       'inventory_transport',
     description:    '',
     amount:         '',
     expense_date:   new Date().toISOString().split('T')[0],
@@ -101,6 +100,7 @@ export default function AdminExpenseForm({ adminId, onClose, onSuccess }) {
 
   const handleSubmit = async () => {
     if (!validate()) return;
+    if (!adminId) { alert('Admin ID not found. Please refresh and try again.'); return; }
     setSaving(true);
     try {
       let proofUrl = null;

@@ -30,23 +30,39 @@ const CAT_ICONS = {
 
 function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', { maximumFractionDigits:0 }); }
 
-export default function AdminAnalytics({ adminId }) {
+export default function AdminAnalytics({ adminId: adminIdProp }) {
   const session = getSession();
 
   const [period,         setPeriod]         = useState('month');
   const [stores,         setStores]         = useState([]);
-  const [storeExpenses,  setStoreExpenses]  = useState([]); // expenses from stores
-  const [adminExpenses,  setAdminExpenses]  = useState([]); // admin_expenses table
+  const [storeExpenses,  setStoreExpenses]  = useState([]);
+  const [adminExpenses,  setAdminExpenses]  = useState([]);
   const [loading,        setLoading]        = useState(true);
   const [showStoreExp,   setShowStoreExp]   = useState(false);
   const [showAdminExp,   setShowAdminExp]   = useState(false);
   const [selectedStore,  setSelectedStore]  = useState(null);
+  const [resolvedAdminId, setResolvedAdminId] = useState(adminIdProp || null);
 
-  useEffect(() => { loadStores(); }, []);
-  useEffect(() => { loadData(); }, [period]);
+  // Resolve adminId from session email if not passed as prop
+  useEffect(() => {
+    if (resolvedAdminId) return;
+    const email = session?.email;
+    if (!email) return;
+    supabase.from('admins').select('id').eq('email', email).single()
+      .then(({ data }) => { if (data?.id) setResolvedAdminId(data.id); });
+  }, []);
+
+  useEffect(() => { if (resolvedAdminId) loadStores(); }, [resolvedAdminId]);
+  useEffect(() => { if (resolvedAdminId) loadData(); }, [period, resolvedAdminId]);
+
+  const adminId = resolvedAdminId;
 
   const loadStores = async () => {
-    const { data } = await supabase.from('stores').select('id, store_name, city, state').eq('is_active', true);
+    const { data } = await supabase
+      .from('stores')
+      .select('id, store_name, city, state')
+      .eq('admin_id', adminId)
+      .eq('is_active', true);
     setStores(data || []);
   };
 
@@ -63,10 +79,12 @@ export default function AdminAnalytics({ adminId }) {
         .gte('expense_date', dateStr)
         .lte('expense_date', endStr)
         .order('expense_date', { ascending: false }),
-      // Admin-level expenses (warehouse, salary, travel etc.)
+      // Admin-level expenses (warehouse, travel etc.) — NO salary
       supabase.from('admin_expenses')
         .select('*')
-        .eq('admin_id', adminId || 'none')
+        .eq('admin_id', adminId)
+        .not('category', 'eq', 'staff_salary')
+        .not('category', 'eq', 'salary')
         .gte('expense_date', dateStr)
         .lte('expense_date', endStr)
         .order('expense_date', { ascending: false }),

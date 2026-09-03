@@ -24,7 +24,7 @@ const PERIODS = [
 // ══════════════════════════════════════════════════════════════════
 // ANALYTICS TAB
 // ══════════════════════════════════════════════════════════════════
-function VishnuAnalytics({ admins, storesMap, managersMap }) {
+function VishnuAnalytics({ admins, storesMap }) {
   const [period,       setPeriod]      = useState('month');
   const [loading,      setLoading]     = useState(true);
   const [chainSales,   setChainSales]  = useState(0);
@@ -54,11 +54,14 @@ function VishnuAnalytics({ admins, storesMap, managersMap }) {
         .lte('created_at', end),
       supabase.from('expenses')
         .select('store_id, amount, category, description, expense_date, proof_url')
+        .not('category', 'eq', 'staff_salary')
+        .not('category', 'eq', 'salary')
         .gte('expense_date', dateStr)
         .lte('expense_date', endStr),
       supabase.from('admin_expenses')
         .select('admin_id, amount, category, description, expense_date, proof_url')
         .not('category', 'eq', 'staff_salary')
+        .not('category', 'eq', 'salary')
         .gte('expense_date', dateStr)
         .lte('expense_date', endStr),
       supabase.from('devta_expenses')
@@ -112,7 +115,6 @@ function VishnuAnalytics({ admins, storesMap, managersMap }) {
         const storeRevenue = sb.reduce((s, b) => s + parseFloat(b.total_amount || 0), 0);
         const storeCash    = sb.reduce((s, b) => s + parseFloat(b.cash_amount  || 0), 0);
         const storeExpSum  = se.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-        const managers     = managersMap[store.id] || [];
         return {
           ...store,
           revenue:  storeRevenue,
@@ -120,7 +122,6 @@ function VishnuAnalytics({ admins, storesMap, managersMap }) {
           expenses: storeExpSum,
           expList:  se,
           bills:    sb.length,
-          managers,
         };
       });
 
@@ -141,7 +142,7 @@ function VishnuAnalytics({ admins, storesMap, managersMap }) {
 
     setAdminData(rollup);
     setLoading(false);
-  }, [period, admins, storesMap, managersMap]);
+  }, [period, admins, storesMap]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -230,17 +231,21 @@ function VishnuAnalytics({ admins, storesMap, managersMap }) {
                     </div>
                   </div>
                   <div style={{ display:'flex', gap:8, flexShrink:0, flexWrap:'wrap', justifyContent:'flex-end' }}>
-                    <span style={{ fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:20,
-                      background:'#F5F3FF', color:'#7c3aed', border:'1px solid #DDD6FE' }}>
-                      📈 {fmt(admin.revenue)}
-                    </span>
-                    <span style={{ fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:20,
-                      background:'#FFF1F0', color:'#FF3B30', border:'1px solid #FECACA' }}>
-                      💸 {fmt(admin.totalExpenses)}
-                    </span>
+                    {admin.revenue > 0 && (
+                      <span style={{ fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:20,
+                        background:'#F5F3FF', color:'#7c3aed', border:'1px solid #DDD6FE' }}>
+                        📈 {fmt(admin.revenue)}
+                      </span>
+                    )}
+                    {admin.totalExpenses > 0 && (
+                      <span style={{ fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:20,
+                        background:'#FFF1F0', color:'#FF3B30', border:'1px solid #FECACA' }}>
+                        💸 {fmt(admin.totalExpenses)}
+                      </span>
+                    )}
                     <span style={{ fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:20,
                       background:'#EFF6FF', color:'#1D4ED8', border:'1px solid #BFDBFE' }}>
-                      {admin.bills} bills
+                      {admin.bills} bill{admin.bills !== 1 ? 's' : ''}
                     </span>
                   </div>
                   <span style={{ fontSize:14, color:'var(--label-4)', flexShrink:0 }}>
@@ -313,18 +318,24 @@ function VishnuAnalytics({ admins, storesMap, managersMap }) {
                                   </div>
                                 </div>
                                 <div style={{ display:'flex', gap:6, flexShrink:0, flexWrap:'wrap' }}>
-                                  <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px',
-                                    borderRadius:20, background:'#F5F3FF', color:'#7c3aed' }}>
-                                    Sales: {fmt(store.revenue)}
-                                  </span>
-                                  <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px',
-                                    borderRadius:20, background:'#FFF1F0', color:'#FF3B30' }}>
-                                    Exp: {fmt(store.expenses)}
-                                  </span>
-                                  <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px',
-                                    borderRadius:20, background:'#DCFCE7', color:'#15803D' }}>
-                                    💵 Cash: {fmt(store.cash)}
-                                  </span>
+                                  {store.revenue > 0 && (
+                                    <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px',
+                                      borderRadius:20, background:'#F5F3FF', color:'#7c3aed' }}>
+                                      Sales: {fmt(store.revenue)}
+                                    </span>
+                                  )}
+                                  {store.expenses > 0 && (
+                                    <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px',
+                                      borderRadius:20, background:'#FFF1F0', color:'#FF3B30' }}>
+                                      Exp: {fmt(store.expenses)}
+                                    </span>
+                                  )}
+                                  {store.cash > 0 && (
+                                    <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px',
+                                      borderRadius:20, background:'#DCFCE7', color:'#15803D' }}>
+                                      💵 Cash: {fmt(store.cash)}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
 
@@ -362,32 +373,6 @@ function VishnuAnalytics({ admins, storesMap, managersMap }) {
                                 </div>
                               )}
 
-                              {/* Store manager contact */}
-                              {store.managers.length > 0 && (
-                                <div style={{ padding:'8px 16px 12px',
-                                  borderTop:'1px solid var(--bg-4)',
-                                  background:'rgba(0,0,0,0.02)' }}>
-                                  {store.managers.map(m => (
-                                    <div key={m.id} style={{ display:'flex', alignItems:'center',
-                                      gap:8, fontSize:11, color:'var(--label-3)' }}>
-                                      <div style={{ width:24, height:24, borderRadius:'50%',
-                                        background:'#EFF6FF', display:'flex', alignItems:'center',
-                                        justifyContent:'center', fontSize:9, fontWeight:700,
-                                        color:'#1D4ED8', flexShrink:0 }}>
-                                        {m.full_name.slice(0,2).toUpperCase()}
-                                      </div>
-                                      <span style={{ flex:1 }}>{m.full_name}</span>
-                                      {m.phone && (
-                                        <a href={`tel:${m.phone}`}
-                                          style={{ color:'#007AFF', fontWeight:700,
-                                            textDecoration:'none', flexShrink:0 }}>
-                                          📞 {m.phone}
-                                        </a>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
                             </div>
                           ))}
                         </div>
@@ -745,7 +730,7 @@ export default function VishnuDashboard() {
           {tab === 'analytics' && (
             <motion.div key="analytics"
               initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}>
-              <VishnuAnalytics admins={admins} storesMap={storesMap} managersMap={managersMap} />
+              <VishnuAnalytics admins={admins} storesMap={storesMap} />
             </motion.div>
           )}
           {tab === 'team' && (
