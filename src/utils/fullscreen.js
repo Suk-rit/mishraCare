@@ -103,6 +103,13 @@ export function startFullscreenGuard() {
   document.addEventListener('webkitfullscreenchange', _handler);
   document.addEventListener('mozfullscreenchange',    _handler);
   document.addEventListener('MSFullscreenChange',     _handler);
+
+  // If we're already not in fullscreen when guard starts (e.g. after page refresh),
+  // show the overlay immediately so user sees it on first load
+  if (!isFullscreen()) {
+    // Small delay so the page has time to render first
+    setTimeout(() => { showOverlay(); }, 500);
+  }
 }
 
 export function stopFullscreenGuard() {
