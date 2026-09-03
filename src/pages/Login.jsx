@@ -2,10 +2,8 @@ import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../utils/supabase';
-import { generateOTP, verifyOTP, sendOTPEmail } from '../utils/otp';
 import { saveSession } from '../utils/session';
 import { enterFullscreen, startFullscreenGuard } from '../utils/fullscreen';
-import OTPInput from '../components/OTPInput';
 import Toast from '../components/Toast';
 import VishnuLogin from './VishnuLogin';
 import DevtaLogin from './DevtaLogin';
@@ -132,9 +130,6 @@ export default function Login() {
   const [email,          setEmail]          = useState('');
   const [password,       setPassword]       = useState('');
   const [loading,        setLoading]        = useState(false);
-  const [otpError,       setOtpError]       = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
-  const [userName,       setUserName]       = useState('');
   const [fieldErr,       setFieldErr]       = useState({});
   const [showVishnu,     setShowVishnu]     = useState(false);
   const [showDevta,      setShowDevta]      = useState(false);
@@ -166,8 +161,10 @@ export default function Login() {
         if (!data.is_active) { showToast('Account inactive.', 'error'); return; }
         if (password !== data.password_hash) { showToast('Incorrect password', 'error'); setFieldErr({ password: 'Incorrect password' }); return; }
         const name = data.full_name || data.email;
-        setUserName(name);
-        await sendOTPAndProceed(name);
+        saveSession({ role: 'admin', email: email.trim().toLowerCase(), name });
+        showToast('Welcome back! 👑', 'success');
+        enterFullscreen().catch(() => {}).then(() => startFullscreenGuard());
+        setTimeout(() => navigate('/admin/dashboard'), 800);
       } else {
         const { data, error } = await supabase.from('store_managers')
           .select('id,full_name,email,password,is_active')
@@ -186,39 +183,6 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const sendOTPAndProceed = async (name) => {
-    const otp = generateOTP(email.trim().toLowerCase());
-    await sendOTPEmail(email.trim().toLowerCase(), otp, name);
-    showToast('OTP sent!', 'success');
-    setStep('otp');
-    startResendCooldown();
-  };
-
-  const handleOTPComplete = (code) => {
-    const valid = verifyOTP(email.trim().toLowerCase(), code);
-    if (!valid) { setOtpError(true); showToast('Incorrect OTP.', 'error'); return; }
-    saveSession({ role, email: email.trim().toLowerCase(), name: userName });
-    showToast('Login successful!', 'success');
-    enterFullscreen().catch(() => {}).then(() => startFullscreenGuard());
-    setTimeout(() => navigate(role === 'admin' ? '/admin/dashboard' : '/store/dashboard'), 800);
-  };
-
-  const startResendCooldown = () => {
-    setResendCooldown(60);
-    const iv = setInterval(() => {
-      setResendCooldown(p => { if (p <= 1) { clearInterval(iv); return 0; } return p - 1; });
-    }, 1000);
-  };
-
-  const handleResend = async () => {
-    if (resendCooldown > 0) return;
-    try {
-      await sendOTPEmail(email.trim().toLowerCase(), generateOTP(email.trim().toLowerCase()), userName);
-      showToast('New OTP sent!', 'success');
-      startResendCooldown();
-    } catch { showToast('Failed', 'error'); }
   };
 
   return (
@@ -338,29 +302,7 @@ export default function Login() {
               </motion.div>
             )}
 
-            {step === 'otp' && (
-              <motion.div key="otp" {...slideIn}>
-                <button onClick={() => { setStep('login'); setOtpError(false); }}
-                  style={{ background: 'none', border: 'none', color: '#2E7D32', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: 0, marginBottom: 18 }}>
-                  ← Back
-                </button>
-                <div style={{ textAlign: 'center', marginBottom: 20 }}>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: '#1B4D1F', marginBottom: 5 }}>Check your email 📬</div>
-                  <div style={{ fontSize: 13, color: '#555', marginBottom: 8 }}>4-digit code sent to</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#2E7D32', background: 'rgba(46,125,50,0.08)', border: '1px solid rgba(46,125,50,0.2)', borderRadius: 9, padding: '7px 14px', display: 'inline-block' }}>
-                    ✉️ {email}
-                  </div>
-                </div>
-                <OTPInput length={4} onComplete={handleOTPComplete} hasError={otpError} onReset={() => setOtpError(false)} />
-                <div style={{ textAlign: 'center', fontSize: 13, color: '#666', marginTop: 14 }}>
-                  Didn't receive it?{' '}
-                  <button onClick={handleResend} disabled={resendCooldown > 0}
-                    style={{ background: 'none', border: 'none', color: '#2E7D32', fontSize: 13, fontWeight: 600, cursor: resendCooldown > 0 ? 'default' : 'pointer', fontFamily: 'inherit', opacity: resendCooldown > 0 ? 0.5 : 1 }}>
-                    {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend OTP'}
-                  </button>
-                </div>
-              </motion.div>
-            )}
+            {/* OTP step removed — admin logs in directly with email+password */}
           </AnimatePresence>
         </motion.div>
       </div>

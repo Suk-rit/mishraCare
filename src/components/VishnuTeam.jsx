@@ -271,15 +271,26 @@ export default function VishnuTeam() {
                 </div>
 
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: 11, color: 'var(--label-4)', marginBottom: 2 }}>Admin Salary</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: '#7c3aed' }}>{fmt(admin.salary)}</div>
-                  <PaymentBadge
-                    mode={admin.salary_mode || admin.salary_type}
-                    bankName={admin.bank_name}
-                    bankAccount={admin.bank_account_no}
-                    bankIfsc={admin.bank_ifsc}
-                    upiId={admin.upi_id}
-                  />
+                  <div style={{ fontSize: 11, color: 'var(--label-4)', marginBottom: 2 }}>
+                    {isAdminExpanded ? 'Admin Own Salary' : 'Total Monthly Cost'}
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: '#7c3aed' }}>
+                    {fmt(isAdminExpanded ? admin.salary : admin.totalSalary)}
+                  </div>
+                  {!isAdminExpanded && admin.totalSalary > 0 && (
+                    <div style={{ fontSize: 10, color: '#7c3aed', marginTop: 2, opacity: 0.7 }}>
+                      incl. {admin.adminTeam.length + admin.stores.reduce((s,st) => s + st.managers.length + st.employees.length, 0)} staff
+                    </div>
+                  )}
+                  {isAdminExpanded && (
+                    <PaymentBadge
+                      mode={admin.salary_mode || admin.salary_type}
+                      bankName={admin.bank_name}
+                      bankAccount={admin.bank_account_no}
+                      bankIfsc={admin.bank_ifsc}
+                      upiId={admin.upi_id}
+                    />
+                  )}
                 </div>
 
                 <div style={{ fontSize: 18, color: 'var(--label-4)', flexShrink: 0 }}>
