@@ -801,7 +801,7 @@ export default function DevtaDashboard() {
 
   const handleAddAdmin = async (e) => {
     e.preventDefault();
-    const errs = runValidations({
+    const validations = {
       email:        () => validateEmail(newAdmin.email),
       password:     () => validatePassword(newAdmin.password),
       full_name:    () => validateRequired(newAdmin.full_name, 'Full name'),
@@ -812,7 +812,22 @@ export default function DevtaDashboard() {
       photo:        () => !adminDocs.photo        ? 'Profile photo is required'      : null,
       aadhar_photo: () => !adminDocs.aadhar_photo ? 'Aadhaar card photo is required' : null,
       pan_photo:    () => !adminDocs.pan_photo    ? 'PAN card photo is required'     : null,
-    });
+    };
+
+    // Add bank details validation if salary mode is bank_transfer or cheque
+    if (newAdmin.salary_mode === 'bank_transfer' || newAdmin.salary_mode === 'cheque') {
+      validations.bank_holder_name = () => validateRequired(newAdmin.bank_holder_name, 'Account holder name');
+      validations.bank_name = () => validateRequired(newAdmin.bank_name, 'Bank name');
+      validations.bank_account_no = () => validateRequired(newAdmin.bank_account_no, 'Account number');
+      validations.bank_ifsc = () => validateRequired(newAdmin.bank_ifsc, 'IFSC code');
+    }
+
+    // Add UPI validation if salary mode is upi
+    if (newAdmin.salary_mode === 'upi') {
+      validations.upi_id = () => validateRequired(newAdmin.upi_id, 'UPI ID');
+    }
+
+    const errs = runValidations(validations);
     if (Object.keys(errs).length) { setAddAdminErr(errs); return; }
     setAddAdminLoading(true);
     try {

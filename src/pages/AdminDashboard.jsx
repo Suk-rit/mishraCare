@@ -264,7 +264,7 @@ function AdminStaffTab({ adminEmail }) {
   const setFile = (k, v) => setFiles(f => ({ ...f, [k]: v }));
 
   const validate = () => {
-    const e = runValidations({
+    const validations = {
       full_name:    () => validateRequired(form.full_name, 'Full name'),
       phone:        () => validatePhone(form.phone),
       aadhar_number:() => validateAadhar(form.aadhar_number),
@@ -272,7 +272,22 @@ function AdminStaffTab({ adminEmail }) {
       salary:       () => validateSalary(form.salary),
       photo:        () => !files.photo        ? 'Profile photo is required'      : null,
       aadhar_photo: () => !files.aadhar_photo ? 'Aadhaar card photo is required' : null,
-    });
+    };
+
+    // Add bank details validation if salary mode is bank_transfer or cheque
+    if (form.salary_mode === 'bank_transfer' || form.salary_mode === 'cheque') {
+      validations.bank_holder_name = () => validateRequired(form.bank_holder_name, 'Account holder name');
+      validations.bank_name = () => validateRequired(form.bank_name, 'Bank name');
+      validations.bank_account_no = () => validateRequired(form.bank_account_no, 'Account number');
+      validations.bank_ifsc = () => validateRequired(form.bank_ifsc, 'IFSC code');
+    }
+
+    // Add UPI validation if salary mode is upi
+    if (form.salary_mode === 'upi') {
+      validations.upi_id = () => validateRequired(form.upi_id, 'UPI ID');
+    }
+
+    const e = runValidations(validations);
     setErrors(e);
     return Object.keys(e).length === 0;
   };

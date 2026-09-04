@@ -533,8 +533,9 @@ function StaffRow({ person, color, bgColor }) {
             <div style={{ padding: '10px 14px 14px', borderTop: `1px dashed ${color}33`, background: bgColor + '55' }}>
               {hasBank && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px', fontSize: 12 }}>
+                  {person.bank_holder_name && <Detail label="Account Holder" value={person.bank_holder_name} />}
                   {person.bank_name && <Detail label="Bank" value={person.bank_name} />}
-                  {person.bank_account_no && <Detail label="Account" value={`****${String(person.bank_account_no).slice(-4)}`} />}
+                  {person.bank_account_no && <Detail label="Account" value={person.bank_account_no} />}
                   {person.bank_ifsc && <Detail label="IFSC" value={person.bank_ifsc} />}
                   {person.bank_branch && <Detail label="Branch" value={person.bank_branch} />}
                 </div>

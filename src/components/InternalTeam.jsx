@@ -54,14 +54,19 @@ export default function InternalTeam() {
 
   const handleAdd = async (e) => {
     e.preventDefault();
-    const errs = runValidations({
+    const validations = {
       full_name:   () => validateRequired(form.full_name, 'Full name'),
       designation: () => validateRequired(form.designation, 'Designation'),
       phone:       () => validatePhone(form.phone),
       salary:      () => validateSalary(form.salary),
+      bank_holder_name: () => validateRequired(form.bank_holder_name, 'Account holder name'),
+      bank_name: () => validateRequired(form.bank_name, 'Bank name'),
+      bank_account_no: () => validateRequired(form.bank_account_no, 'Account number'),
+      bank_ifsc: () => validateRequired(form.bank_ifsc, 'IFSC code'),
       aadhar_photo:() => !documents.aadhar_photo ? 'Aadhaar card photo is required' : null,
       pan_photo:   () => !documents.pan_photo    ? 'PAN card photo is required'     : null,
-    });
+    };
+    const errs = runValidations(validations);
     if (Object.keys(errs).length) {
       // Show first error as alert for internal team (simple inline form, no Field component)
       alert(Object.values(errs)[0]);
@@ -355,6 +360,11 @@ export default function InternalTeam() {
                 <div style={{ fontSize:11, fontWeight:700, color:'var(--label-4)', textTransform:'uppercase', letterSpacing:'0.6px', marginBottom:6 }}>
                   Bank Details
                 </div>
+                {member.bank_holder_name && (
+                  <div style={{ fontSize:12, color:'var(--label-2)', marginBottom:2 }}>
+                    👤 {member.bank_holder_name}
+                  </div>
+                )}
                 {member.bank_name && (
                   <div style={{ fontSize:12, color:'var(--label-2)', marginBottom:2 }}>
                     🏦 {member.bank_name}
@@ -368,6 +378,11 @@ export default function InternalTeam() {
                 {member.bank_ifsc && (
                   <div style={{ fontSize:12, color:'var(--label-2)', marginBottom:2 }}>
                     IFSC: {member.bank_ifsc}
+                  </div>
+                )}
+                {member.bank_branch && (
+                  <div style={{ fontSize:12, color:'var(--label-2)', marginBottom:2 }}>
+                    Branch: {member.bank_branch}
                   </div>
                 )}
                 {member.upi_id && (
@@ -500,22 +515,22 @@ export default function InternalTeam() {
                   </div>
                   <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
                     <div>
-                      <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)',display:'block',marginBottom:4 }}>Account Holder Name</label>
+                      <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)',display:'block',marginBottom:4 }}>Account Holder Name *</label>
                       <input value={form.bank_holder_name} onChange={e => setForm({...form, bank_holder_name:e.target.value})}
                         style={{ width:'100%',padding:'10px 12px',border:'1.5px solid #E0E0E0',borderRadius:8,fontSize:13 }} />
                     </div>
                     <div>
-                      <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)',display:'block',marginBottom:4 }}>Bank Name</label>
+                      <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)',display:'block',marginBottom:4 }}>Bank Name *</label>
                       <input value={form.bank_name} onChange={e => setForm({...form, bank_name:e.target.value})}
                         style={{ width:'100%',padding:'10px 12px',border:'1.5px solid #E0E0E0',borderRadius:8,fontSize:13 }} />
                     </div>
                     <div>
-                      <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)',display:'block',marginBottom:4 }}>Account Number</label>
+                      <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)',display:'block',marginBottom:4 }}>Account Number *</label>
                       <input value={form.bank_account_no} onChange={e => setForm({...form, bank_account_no:e.target.value})}
                         style={{ width:'100%',padding:'10px 12px',border:'1.5px solid #E0E0E0',borderRadius:8,fontSize:13 }} />
                     </div>
                     <div>
-                      <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)',display:'block',marginBottom:4 }}>IFSC Code</label>
+                      <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)',display:'block',marginBottom:4 }}>IFSC Code *</label>
                       <input value={form.bank_ifsc} onChange={e => setForm({...form, bank_ifsc:e.target.value})}
                         style={{ width:'100%',padding:'10px 12px',border:'1.5px solid #E0E0E0',borderRadius:8,fontSize:13 }} />
                     </div>
