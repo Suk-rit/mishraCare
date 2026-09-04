@@ -4,6 +4,7 @@ import { supabase } from '../utils/supabase';
 import { uploadFiles } from '../utils/storage';
 import FileUpload from './FileUpload';
 import SalaryPaymentSection, { SALARY_PAYMENT_DEFAULTS, salaryPaymentFields } from './SalaryPaymentSection';
+import { runValidations, validateRequired, validatePhone, validateAadhar, validatePAN, validateSalary, validatePincode } from '../utils/validators';
 
 // ── Field — defined outside to prevent remount on re-render ──────────────────
 function Field({ name, label, required, placeholder, type = 'text', form, errors, onChange }) {
@@ -37,12 +38,16 @@ export default function AddEmployeeModal({ store, manager, onClose, onSuccess })
   const setFile  = (k, v) => setFiles(f => ({ ...f, [k]: v }));
 
   const validate = () => {
-    const e = {};
-    if (!form.full_name.trim()) e.full_name = 'Required';
-    if (!form.phone.trim())     e.phone     = 'Required';
-    if (!form.salary)           e.salary    = 'Required';
-    if (!files.photo)           e.photo     = 'Profile photo is required';
-    if (!files.aadhar_photo)    e.aadhar_photo = 'Aadhar photo is required';
+    const e = runValidations({
+      full_name:    () => validateRequired(form.full_name, 'Full name'),
+      phone:        () => validatePhone(form.phone),
+      aadhar_number:() => validateAadhar(form.aadhar_number),
+      pan_number:   () => validatePAN(form.pan_number),
+      salary:       () => validateSalary(form.salary),
+      pincode:      () => form.pincode.trim() ? validatePincode(form.pincode) : null,
+      photo:        () => !files.photo        ? 'Profile photo is required'      : null,
+      aadhar_photo: () => !files.aadhar_photo ? 'Aadhaar card photo is required' : null,
+    });
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -141,8 +146,8 @@ export default function AddEmployeeModal({ store, manager, onClose, onSuccess })
           <div className="form-section">
             <div className="form-section-title">Identity</div>
             <div className="form-grid">
-              <Field {...fp} name="aadhar_number" label="Aadhar Number" placeholder="XXXX XXXX XXXX" />
-              <Field {...fp} name="pan_number"    label="PAN Number"    placeholder="ABCDE1234F" />
+              <Field {...fp} name="aadhar_number" label="Aadhaar Number" required placeholder="1234 5678 9012" />
+              <Field {...fp} name="pan_number"    label="PAN Number"     required placeholder="ABCDE1234F" />
             </div>
           </div>
 
@@ -197,7 +202,7 @@ export default function AddEmployeeModal({ store, manager, onClose, onSuccess })
           </div>
 
           <div className="form-section">
-            <div className="form-section-title">Documents (Required: Photo + Aadhar)</div>
+            <div className="form-section-title">Documents (Required: Photo + Aadhaar + PAN)</div>
             <div className="form-grid">
               <div>
                 <FileUpload label="Profile Photo" required value={files.photo} onChange={v => setFile('photo', v)} accept="image/*" />

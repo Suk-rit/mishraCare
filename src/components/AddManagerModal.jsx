@@ -5,6 +5,7 @@ import { uploadFiles } from '../utils/storage';
 import FileUpload from './FileUpload';
 import SalaryPaymentSection, { SALARY_PAYMENT_DEFAULTS, salaryPaymentFields } from './SalaryPaymentSection';
 import { sendWelcomeEmail } from '../utils/email';
+import { runValidations, validateRequired, validateEmail, validatePassword, validatePhone, validateAadhar, validatePAN, validateSalary, validatePincode } from '../utils/validators';
 
 // ── Field component defined OUTSIDE the modal so it never remounts on re-render ──
 function Field({ name, label, required, placeholder, type = 'text', form, errors, onChange }) {
@@ -43,14 +44,18 @@ export default function AddManagerModal({ store, onClose, onSuccess }) {
   const setFile  = (k, v) => setFiles(f => ({ ...f, [k]: v }));
 
   const validate = () => {
-    const e = {};
-    if (!form.full_name.trim()) e.full_name = 'Required';
-    if (!form.email.trim())     e.email     = 'Required';
-    if (!form.password.trim())  e.password  = 'Required';
-    if (!form.phone.trim())     e.phone     = 'Required';
-    // Document requirements
-    if (!files.photo)        e.photo        = 'Profile photo is required';
-    if (!files.aadhar_photo) e.aadhar_photo = 'Aadhar card photo is required';
+    const e = runValidations({
+      full_name:    () => validateRequired(form.full_name, 'Full name'),
+      email:        () => validateEmail(form.email),
+      password:     () => validatePassword(form.password),
+      phone:        () => validatePhone(form.phone),
+      aadhar_number:() => validateAadhar(form.aadhar_number),
+      pan_number:   () => validatePAN(form.pan_number),
+      salary:       () => validateSalary(form.salary),
+      pincode:      () => form.pincode.trim() ? validatePincode(form.pincode) : null,
+      photo:        () => !files.photo        ? 'Profile photo is required'      : null,
+      aadhar_photo: () => !files.aadhar_photo ? 'Aadhaar card photo is required' : null,
+    });
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -165,8 +170,8 @@ export default function AddManagerModal({ store, onClose, onSuccess }) {
           <div className="form-section">
             <div className="form-section-title">Identity Documents</div>
             <div className="form-grid">
-              <Field {...fp} name="aadhar_number" label="Aadhar Number" placeholder="XXXX XXXX XXXX" />
-              <Field {...fp} name="pan_number"    label="PAN Number"    placeholder="ABCDE1234F" />
+              <Field {...fp} name="aadhar_number" label="Aadhaar Number" required placeholder="1234 5678 9012" />
+              <Field {...fp} name="pan_number"    label="PAN Number"     required placeholder="ABCDE1234F" />
             </div>
           </div>
 
@@ -194,7 +199,7 @@ export default function AddManagerModal({ store, onClose, onSuccess }) {
             <div className="form-grid">
               <Field {...fp} name="designation"  label="Designation"  placeholder="Store Manager" />
               <Field {...fp} name="joining_date" label="Joining Date" type="date" />
-              <Field {...fp} name="salary"       label="Salary (₹)"   type="number" placeholder="25000" />
+              <Field {...fp} name="salary"       label="Salary (₹)"   required type="number" placeholder="25000" />
               <div className="field">
                 <label>Salary Type</label>
                 <select value={form.salary_type} onChange={e => setField('salary_type', e.target.value)}>
@@ -220,7 +225,7 @@ export default function AddManagerModal({ store, onClose, onSuccess }) {
           </div>
 
           <div className="form-section">
-            <div className="form-section-title">Documents &amp; Photos</div>
+            <div className="form-section-title">Documents &amp; Photos (Required: Photo + Aadhaar + PAN)</div>
             <div className="form-grid">
               <div>
                 <FileUpload label="Profile Photo" required value={files.photo} onChange={v => setFile('photo', v)} accept="image/*" />

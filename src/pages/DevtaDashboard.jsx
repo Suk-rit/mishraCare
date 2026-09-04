@@ -11,6 +11,7 @@ import StoreSelector from '../components/StoreSelector';
 import { sendWelcomeEmail } from '../utils/email';
 import AppShell from '../components/AppShell';
 import SalaryPaymentSection, { SALARY_PAYMENT_DEFAULTS, salaryPaymentFields } from '../components/SalaryPaymentSection';
+import { runValidations, validateRequired, validateEmail, validatePassword, validatePhone, validateAadhar, validatePAN, validateSalary } from '../utils/validators';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const NAV = [
@@ -800,10 +801,18 @@ export default function DevtaDashboard() {
 
   const handleAddAdmin = async (e) => {
     e.preventDefault();
-    const errs = {};
-    if (!newAdmin.email.trim())     errs.email    = 'Required';
-    if (!newAdmin.password.trim())  errs.password = 'Required';
-    if (!newAdmin.full_name.trim()) errs.full_name= 'Required';
+    const errs = runValidations({
+      email:        () => validateEmail(newAdmin.email),
+      password:     () => validatePassword(newAdmin.password),
+      full_name:    () => validateRequired(newAdmin.full_name, 'Full name'),
+      phone:        () => validatePhone(newAdmin.phone),
+      aadhar_number:() => validateAadhar(newAdmin.aadhar_number),
+      pan_number:   () => validatePAN(newAdmin.pan_number),
+      salary:       () => validateSalary(newAdmin.salary),
+      photo:        () => !adminDocs.photo        ? 'Profile photo is required'      : null,
+      aadhar_photo: () => !adminDocs.aadhar_photo ? 'Aadhaar card photo is required' : null,
+      pan_photo:    () => !adminDocs.pan_photo    ? 'PAN card photo is required'     : null,
+    });
     if (Object.keys(errs).length) { setAddAdminErr(errs); return; }
     setAddAdminLoading(true);
     try {

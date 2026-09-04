@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../utils/supabase';
 import { uploadFiles } from '../utils/storage';
+import { runValidations, validateRequired, validatePhone, validateSalary } from '../utils/validators';
 
 export default function InternalTeam() {
   const [loading, setLoading] = useState(true);
@@ -53,6 +54,19 @@ export default function InternalTeam() {
 
   const handleAdd = async (e) => {
     e.preventDefault();
+    const errs = runValidations({
+      full_name:   () => validateRequired(form.full_name, 'Full name'),
+      designation: () => validateRequired(form.designation, 'Designation'),
+      phone:       () => validatePhone(form.phone),
+      salary:      () => validateSalary(form.salary),
+      aadhar_photo:() => !documents.aadhar_photo ? 'Aadhaar card photo is required' : null,
+      pan_photo:   () => !documents.pan_photo    ? 'PAN card photo is required'     : null,
+    });
+    if (Object.keys(errs).length) {
+      // Show first error as alert for internal team (simple inline form, no Field component)
+      alert(Object.values(errs)[0]);
+      return;
+    }
     setSaving(true);
     try {
       const urls = await uploadFiles('internal-team-docs', documents, 'internal-team');
@@ -441,16 +455,16 @@ export default function InternalTeam() {
                   <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
                     <div>
                       <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)',display:'block',marginBottom:4 }}>Full Name *</label>
-                      <input required value={form.full_name} onChange={e => setForm({...form, full_name:e.target.value})}
+                      <input value={form.full_name} onChange={e => setForm({...form, full_name:e.target.value})}
                         style={{ width:'100%',padding:'10px 12px',border:'1.5px solid #E0E0E0',borderRadius:8,fontSize:13 }} />
                     </div>
                     <div>
                       <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)',display:'block',marginBottom:4 }}>Designation *</label>
-                      <input required value={form.designation} onChange={e => setForm({...form, designation:e.target.value})}
+                      <input value={form.designation} onChange={e => setForm({...form, designation:e.target.value})}
                         style={{ width:'100%',padding:'10px 12px',border:'1.5px solid #E0E0E0',borderRadius:8,fontSize:13 }} />
                     </div>
                     <div>
-                      <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)',display:'block',marginBottom:4 }}>Phone</label>
+                      <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)',display:'block',marginBottom:4 }}>Phone *</label>
                       <input value={form.phone} onChange={e => setForm({...form, phone:e.target.value})}
                         style={{ width:'100%',padding:'10px 12px',border:'1.5px solid #E0E0E0',borderRadius:8,fontSize:13 }} />
                     </div>
@@ -525,8 +539,8 @@ export default function InternalTeam() {
                   </div>
                   <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:10 }}>
                     {[
-                      { key:'aadhar_photo', label:'Aadhar Card' },
-                      { key:'pan_photo', label:'PAN Card' },
+                      { key:'aadhar_photo', label:'Aadhaar Card *' },
+                      { key:'pan_photo', label:'PAN Card *' },
                       { key:'id_proof', label:'ID Proof' },
                       { key:'other_doc', label:'Other Document' },
                     ].map(doc => (

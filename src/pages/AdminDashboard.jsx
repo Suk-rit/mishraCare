@@ -12,6 +12,8 @@ import IssueResolution from './IssueResolution';
 import AdminAnalytics from './AdminAnalytics';
 import AppShell from '../components/AppShell';
 import SalaryPaymentSection, { SALARY_PAYMENT_DEFAULTS, salaryPaymentFields } from '../components/SalaryPaymentSection';
+import { runValidations, validateRequired, validatePhone, validateAadhar, validatePAN, validateSalary } from '../utils/validators';
+import FileUpload from '../components/FileUpload';
 import '../styles/login.css';
 import '../styles/stores.css';
 
@@ -262,11 +264,15 @@ function AdminStaffTab({ adminEmail }) {
   const setFile = (k, v) => setFiles(f => ({ ...f, [k]: v }));
 
   const validate = () => {
-    const e = {};
-    if (!form.full_name.trim()) e.full_name = 'Required';
-    if (!form.phone.trim())     e.phone     = 'Required';
-    if (!form.salary)           e.salary    = 'Required';
-    if (!files.photo)           e.photo     = 'Profile photo required';
+    const e = runValidations({
+      full_name:    () => validateRequired(form.full_name, 'Full name'),
+      phone:        () => validatePhone(form.phone),
+      aadhar_number:() => validateAadhar(form.aadhar_number),
+      pan_number:   () => validatePAN(form.pan_number),
+      salary:       () => validateSalary(form.salary),
+      photo:        () => !files.photo        ? 'Profile photo is required'      : null,
+      aadhar_photo: () => !files.aadhar_photo ? 'Aadhaar card photo is required' : null,
+    });
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -370,11 +376,12 @@ function AdminStaffTab({ adminEmail }) {
             <div className="form-grid">
               {[
                 { k:'full_name', label:'Full Name *', ph:'Ravi Kumar' },
-                { k:'phone', label:'Phone *', ph:'+91 98765 43210' },
+                { k:'phone', label:'Phone * (10 digits)', ph:'9876543210' },
                 { k:'designation', label:'Designation', ph:'Warehouse Staff / Driver' },
                 { k:'salary', label:'Monthly Salary (₹) *', ph:'12000', type:'number' },
                 { k:'joining_date', label:'Joining Date', type:'date' },
-                { k:'aadhar_number', label:'Aadhar Number', ph:'XXXX XXXX XXXX' },
+                { k:'aadhar_number', label:'Aadhaar Number * (12 digits)', ph:'1234 5678 9012' },
+                { k:'pan_number', label:'PAN Number * (e.g. ABCDE1234F)', ph:'ABCDE1234F' },
               ].map(f => (
                 <div key={f.k} className="field">
                   <label style={{ fontSize:12, fontWeight:600, color:'var(--label-3)', display:'block', marginBottom:4 }}>{f.label}</label>
@@ -393,7 +400,10 @@ function AdminStaffTab({ adminEmail }) {
                 <FileUpload label="Profile Photo *" required value={files.photo} onChange={v => setFile('photo', v)} accept="image/*" />
                 {errors.photo && <span style={{ fontSize:11, color:'#B91C1C' }}>{errors.photo}</span>}
               </div>
-              <FileUpload label="Aadhar Photo" value={files.aadhar_photo} onChange={v => setFile('aadhar_photo', v)} />
+              <div>
+                <FileUpload label="Aadhaar Card Photo *" required value={files.aadhar_photo} onChange={v => setFile('aadhar_photo', v)} />
+                {errors.aadhar_photo && <span style={{ fontSize:11, color:'#B91C1C' }}>{errors.aadhar_photo}</span>}
+              </div>
               <FileUpload label="ID Proof (optional)" value={files.id_proof} onChange={v => setFile('id_proof', v)} />
             </div>
 
