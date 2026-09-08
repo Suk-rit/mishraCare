@@ -14,6 +14,8 @@ import AppShell from '../components/AppShell';
 import SalaryPaymentSection, { SALARY_PAYMENT_DEFAULTS, salaryPaymentFields } from '../components/SalaryPaymentSection';
 import { runValidations, validateRequired, validatePhone, validateAadhar, validatePAN, validateSalary } from '../utils/validators';
 import FileUpload from '../components/FileUpload';
+import RefreshButton from '../components/RefreshButton';
+import ITSupport from '../components/ITSupport';
 import '../styles/login.css';
 import '../styles/stores.css';
 
@@ -26,6 +28,7 @@ const NAV = [
   { id: 'issues',    icon: '⚠️',  label: 'Issues'     },
   { id: 'requests',  icon: '📋', label: 'Store Requests' },
   { id: 'staff',     icon: '👥', label: 'Staff'      },
+  { id: 'it-support', icon: '💻', label: 'IT Support' },
 ];
 
 export default function AdminDashboard() {
@@ -35,6 +38,7 @@ export default function AdminDashboard() {
   const [active,       setActive]       = useState('dashboard');
   const [selectedStore,setSelectedStore]= useState(null);
   const [stats,        setStats]        = useState({ stores: '—', managers: '—', employees: '—', pending: '—' });
+  const [adminId,      setAdminId]      = useState(session?.id || null);
 
   useEffect(() => {
     if (!session || session.role !== 'admin') {
@@ -42,6 +46,13 @@ export default function AdminDashboard() {
       return;
     }
     fetchStats();
+    // Resolve admin ID from database
+    if (session?.email) {
+      supabase.from('admins').select('id').eq('email', session.email).single()
+        .then(({ data }) => {
+          if (data?.id) setAdminId(data.id);
+        });
+    }
   }, []);
 
   const fetchStats = async () => {
@@ -101,7 +112,9 @@ export default function AdminDashboard() {
               display:'flex', alignItems:'center', gap:4, padding:0 }}>
             ← Stores / {selectedStore?.store_name}
           </button>
-        ) : null
+        ) : (
+          <RefreshButton onRefresh={fetchStats} label="" />
+        )
       }
     >
       <div style={{ overflowY:'auto' }}>
@@ -208,8 +221,21 @@ export default function AdminDashboard() {
               </motion.div>
             )}
 
+            {/* IT Support tab */}
+            {active === 'it-support' && (
+              <motion.div key="it-support" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                style={{ padding: '32px 28px', maxWidth: 1100, margin: '0 auto' }}>
+                <ITSupport
+                  userRole="admin"
+                  userId={adminId}
+                  userName={session?.name}
+                  userEmail={session?.email}
+                />
+              </motion.div>
+            )}
+
             {/* Coming soon */}
-            {!['dashboard', 'stores', 'store-detail', 'inventory', 'add-stock', 'analytics', 'issues', 'requests', 'staff'].includes(active) && (
+            {!['dashboard', 'stores', 'store-detail', 'inventory', 'add-stock', 'analytics', 'issues', 'requests', 'staff', 'it-support'].includes(active) && (
               <motion.div key={active} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                 style={{ padding: '80px 28px', textAlign: 'center' }}>
                 <div style={{ fontSize: 52, marginBottom: 14, opacity: 0.3 }}>{NAV.find(n => n.id === active)?.icon}</div>
@@ -240,10 +266,12 @@ function AdminStaffTab({ adminEmail }) {
   const [loading,     setLoading]     = useState(true);
   const [showForm,    setShowForm]    = useState(false);
   const [form,        setForm]        = useState(STAFF_INITIAL);
-  const [files,       setFiles]       = useState({ photo:null, aadhar_photo:null, id_proof:null });
+  const [files,       setFiles]       = useState({ photo:null, aadhar_photo:null, pan_photo:null, id_proof:null });
   const [errors,      setErrors]      = useState({});
   const [saving,      setSaving]      = useState(false);
   const [adminId,     setAdminId]     = useState(null);
+  const [customBankName, setCustomBankName] = useState('');
+  const [view,        setView]        = useState('active'); // 'active' or 'inactive'
 
   useEffect(() => {
     if (!adminEmail) return;
@@ -260,6 +288,14 @@ function AdminStaffTab({ adminEmail }) {
     setLoading(false);
   };
 
+  const filteredTeam = team.filter(member => {
+    if (view === 'active') {
+      return member.is_active !== false && member.status !== 'rejected';
+    } else {
+      return member.is_active === false || member.status === 'rejected';
+    }
+  });
+
   const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const setFile = (k, v) => setFiles(f => ({ ...f, [k]: v }));
 
@@ -272,14 +308,20 @@ function AdminStaffTab({ adminEmail }) {
       salary:       () => validateSalary(form.salary),
       photo:        () => !files.photo        ? 'Profile photo is required'      : null,
       aadhar_photo: () => !files.aadhar_photo ? 'Aadhaar card photo is required' : null,
+      pan_photo:    () => !files.pan_photo    ? 'PAN card photo is required'     : null,
     };
 
     // Add bank details validation if salary mode is bank_transfer or cheque
     if (form.salary_mode === 'bank_transfer' || form.salary_mode === 'cheque') {
+      const finalBankName = form.bank_name === 'Other' ? customBankName.trim() : form.bank_name.trim();
       validations.bank_holder_name = () => validateRequired(form.bank_holder_name, 'Account holder name');
-      validations.bank_name = () => validateRequired(form.bank_name, 'Bank name');
+      validations.bank_name = () => validateRequired(finalBankName, 'Bank name');
       validations.bank_account_no = () => validateRequired(form.bank_account_no, 'Account number');
       validations.bank_ifsc = () => validateRequired(form.bank_ifsc, 'IFSC code');
+      
+      if (form.bank_name === 'Other' && !finalBankName) {
+        validations.custom_bank_name = () => 'Please enter the bank name';
+      }
     }
 
     // Add UPI validation if salary mode is upi
@@ -297,8 +339,10 @@ function AdminStaffTab({ adminEmail }) {
     setSaving(true);
     try {
       const urls = await uploadFiles('admin-team-documents', {
-        photo: files.photo, aadhar_photo: files.aadhar_photo, id_proof: files.id_proof,
+        photo: files.photo, aadhar_photo: files.aadhar_photo, pan_photo: files.pan_photo, id_proof: files.id_proof,
       }, `admin/${adminId}`);
+
+      const finalBankName = form.bank_name === 'Other' ? customBankName.trim() : form.bank_name.trim();
 
       const { error } = await supabase.from('admin_team').insert({
         admin_id:        adminId,
@@ -320,9 +364,10 @@ function AdminStaffTab({ adminEmail }) {
         salary:          form.salary ? parseFloat(form.salary) : null,
         salary_type:     form.salary_type,
         shift:           form.shift,
-        ...salaryPaymentFields(form),
+        ...salaryPaymentFields(form, form.bank_name === 'Other' ? customBankName.trim() : form.bank_name.trim()),
         photo_url:       urls.photo,
         aadhar_photo_url:urls.aadhar_photo,
+        pan_photo_url:   urls.pan_photo,
         id_proof_url:    urls.id_proof,
         status:          'pending',
         is_active:       false,
@@ -330,7 +375,7 @@ function AdminStaffTab({ adminEmail }) {
       if (error) throw new Error(error.message);
       setShowForm(false);
       setForm(STAFF_INITIAL);
-      setFiles({ photo:null, aadhar_photo:null, id_proof:null });
+      setFiles({ photo:null, aadhar_photo:null, pan_photo:null, id_proof:null });
       fetchTeam(adminId);
     } catch (err) {
       alert('Error: ' + err.message);
@@ -363,12 +408,50 @@ function AdminStaffTab({ adminEmail }) {
             Once approved, monthly salary is auto-added as an expense.
           </div>
         </div>
-        <button onClick={() => setShowForm(v => !v)}
-          style={{ background:'linear-gradient(145deg,#FF3B30,#D93025)', color:'#fff', border:'none',
-            borderRadius:12, padding:'10px 22px', fontSize:13, fontWeight:700,
-            cursor:'pointer', fontFamily:'inherit', boxShadow:'0 3px 12px rgba(255,59,48,0.3)' }}>
-          + Add Team Member
-        </button>
+        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+          <div style={{ display:'flex', gap:8, background:'var(--bg-2)', padding:4, borderRadius:12, border:'1px solid var(--bg-4)' }}>
+            <button
+              onClick={() => setView('active')}
+              style={{
+                padding:'8px 20px',
+                background: view === 'active' ? 'linear-gradient(135deg,#7c3aed,#4f46e5)' : 'transparent',
+                color: view === 'active' ? '#fff' : 'var(--label-3)',
+                border:'none',
+                borderRadius:10,
+                fontSize:13,
+                fontWeight:700,
+                cursor:'pointer',
+                fontFamily:'inherit',
+                transition:'all 0.2s',
+              }}
+            >
+              Active
+            </button>
+            <button
+              onClick={() => setView('inactive')}
+              style={{
+                padding:'8px 20px',
+                background: view === 'inactive' ? 'linear-gradient(135deg,#7c3aed,#4f46e5)' : 'transparent',
+                color: view === 'inactive' ? '#fff' : 'var(--label-3)',
+                border:'none',
+                borderRadius:10,
+                fontSize:13,
+                fontWeight:700,
+                cursor:'pointer',
+                fontFamily:'inherit',
+                transition:'all 0.2s',
+              }}
+            >
+              Inactive/Rejected
+            </button>
+          </div>
+          <button onClick={() => setShowForm(v => !v)}
+            style={{ background:'linear-gradient(145deg,#FF3B30,#D93025)', color:'#fff', border:'none',
+              borderRadius:12, padding:'10px 22px', fontSize:13, fontWeight:700,
+              cursor:'pointer', fontFamily:'inherit', boxShadow:'0 3px 12px rgba(255,59,48,0.3)' }}>
+            + Add Team Member
+          </button>
+        </div>
       </div>
 
       {/* Add form (inline) */}
@@ -419,11 +502,20 @@ function AdminStaffTab({ adminEmail }) {
                 <FileUpload label="Aadhaar Card Photo *" required value={files.aadhar_photo} onChange={v => setFile('aadhar_photo', v)} />
                 {errors.aadhar_photo && <span style={{ fontSize:11, color:'#B91C1C' }}>{errors.aadhar_photo}</span>}
               </div>
+              <div>
+                <FileUpload label="PAN Card Photo *" required value={files.pan_photo} onChange={v => setFile('pan_photo', v)} />
+                {errors.pan_photo && <span style={{ fontSize:11, color:'#B91C1C' }}>{errors.pan_photo}</span>}
+              </div>
               <FileUpload label="ID Proof (optional)" value={files.id_proof} onChange={v => setFile('id_proof', v)} />
             </div>
 
             <div style={{ marginTop:14 }}>
-              <SalaryPaymentSection form={form} onChange={(k,v) => setF(k,v)} />
+              <SalaryPaymentSection 
+                form={form} 
+                onChange={(k,v) => setF(k,v)} 
+                customBankName={customBankName}
+                onCustomBankNameChange={setCustomBankName}
+              />
             </div>
 
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:18 }}>
@@ -445,16 +537,20 @@ function AdminStaffTab({ adminEmail }) {
       {/* Team list */}
       {loading ? (
         <div style={{ textAlign:'center', padding:40, color:'var(--label-4)', fontSize:14 }}>Loading…</div>
-      ) : team.length === 0 ? (
+      ) : filteredTeam.length === 0 ? (
         <div style={{ textAlign:'center', padding:'60px 20px', background:'var(--bg-2)',
           borderRadius:16, border:'1px solid var(--bg-4)' }}>
           <div style={{ fontSize:40, opacity:0.2, marginBottom:12 }}>👥</div>
-          <div style={{ fontSize:15, fontWeight:600, color:'var(--label-3)' }}>No team members yet</div>
-          <div style={{ fontSize:13, color:'var(--label-4)', marginTop:4 }}>Add warehouse, office or delivery staff above</div>
+          <div style={{ fontSize:15, fontWeight:600, color:'var(--label-3)' }}>
+            {view === 'active' ? 'No active team members' : 'No inactive or rejected team members'}
+          </div>
+          <div style={{ fontSize:13, color:'var(--label-4)', marginTop:4 }}>
+            {view === 'active' ? 'Add warehouse, office or delivery staff above' : 'Switch to Active view to see team members'}
+          </div>
         </div>
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-          {team.map(m => {
+          {filteredTeam.map(m => {
             const sc = STATUS_COLORS[m.status] || STATUS_COLORS.pending;
             return (
               <div key={m.id} style={{ background:'var(--bg-2)', border:'1px solid var(--bg-4)',

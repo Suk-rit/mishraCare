@@ -10,6 +10,7 @@ import StoreAnalytics   from './StoreAnalytics';
 import InventoryRequestTab from './InventoryRequestTab';
 import RefreshButton    from '../components/RefreshButton';
 import AppShell         from '../components/AppShell';
+import ITSupport        from '../components/ITSupport';
 import '../styles/login.css';
 import '../styles/stores.css';
 
@@ -38,6 +39,7 @@ export default function StoreManagerDashboard() {
   const [loading,      setLoading]      = useState(true);
   const [showAddEmp,   setShowAddEmp]   = useState(false);
   const [tab,          setTab]          = useState('overview');
+  const [empView,      setEmpView]      = useState('active'); // 'active' or 'inactive'
 
   useEffect(() => {
     if (!session || session.role !== 'store_manager') {
@@ -61,13 +63,15 @@ export default function StoreManagerDashboard() {
 
         const [{ data: emps }, { data: inv }, { count: pendingCount }] = await Promise.all([
           supabase.from('employees').select('*').eq('store_id', mgr.store_id).order('created_at', { ascending: false }),
-          supabase.from('store_inventory').select('*, medicines(name, strength, type, pack_size, pack_unit)').eq('store_id', mgr.store_id).eq('is_active', true).order('expiry_date', { ascending: true }),
+          supabase.from('store_inventory').select('*, medicines(name, strength, type, pack_size, pack_unit)').eq('store_id', mgr.store_id).order('expiry_date', { ascending: true }),
           supabase.from('stock_transfers').select('*', { count:'exact', head:true }).eq('store_id', mgr.store_id).eq('status', 'dispatched'),
         ]);
         setEmployees(emps || []);
         setStoreInv(inv || []);
         setPendingTransfers(pendingCount || 0);
       }
+    } catch (err) {
+      console.error('Error fetching store manager data:', err);
     } finally {
       setLoading(false);
     }
@@ -81,18 +85,24 @@ export default function StoreManagerDashboard() {
   const pending   = employees.filter(e => e.status === 'pending').length;
   const approved  = employees.filter(e => e.status === 'approved').length;
 
+  const filteredEmployees = employees.filter(e => {
+    if (empView === 'active') {
+      return e.status === 'approved' && e.is_active !== false;
+    } else {
+      return e.is_active === false || e.status === 'rejected' || e.status === 'pending';
+    }
+  });
+
   const S = { padding: '0 28px', maxWidth: 1100, margin: '0 auto' };
 
   const NAV_ITEMS = [
     { id: 'overview',  icon: '📊', label: 'Overview'                                                            },
     { id: 'billing',   icon: '🧾', label: 'Billing'                                                             },
     { id: 'analytics', icon: '📈', label: 'Analytics'                                                           },
-    { id: 'transfers', icon: '📦', label: 'Transfers',   badge: pendingTransfers, alert: pendingTransfers > 0   },
-    { id: 'request',   icon: '📋', label: 'Request Stock'                                                       },
-    { id: 'stock',     icon: '🏪', label: 'My Stock'                                                            },
+    { id: 'inventory', icon: '📦', label: 'Inventory'                                                           },
     { id: 'employees', icon: '👥', label: `My Team (${employees.filter(e=>e.status==='approved').length})`      },
-    { id: 'pending',   icon: '⏳', label: `Pending (${employees.filter(e=>e.status==='pending').length})`,
-      alert: employees.filter(e=>e.status==='pending').length > 0                                               },
+    { id: 'requests',  icon: '📋', label: 'Stock Requests'                                                     },
+    { id: 'it-support', icon: '💻', label: 'IT Support'                                                        },
   ];
 
   return (
@@ -202,26 +212,70 @@ export default function StoreManagerDashboard() {
               {/* EMPLOYEES */}
               {tab === 'employees' && (
                 <motion.div key="em" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--label)' }}>Active Team Members</div>
-                    <button onClick={() => setShowAddEmp(true)}
-                      style={{ background: 'linear-gradient(145deg,#FF3B30,#D93025)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 2px 8px rgba(255,59,48,0.28)' }}>
-                      + Add Helper / Employee
-                    </button>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+                    <div style={{ display: 'flex', gap: 8, background: 'var(--bg-2)', padding: 4, borderRadius: 12, border: '1px solid var(--bg-4)' }}>
+                      <button
+                        onClick={() => setEmpView('active')}
+                        style={{
+                          padding: '8px 20px',
+                          background: empView === 'active' ? 'linear-gradient(135deg,#7c3aed,#4f46e5)' : 'transparent',
+                          color: empView === 'active' ? '#fff' : 'var(--label-3)',
+                          border: 'none',
+                          borderRadius: 10,
+                          fontSize: 13,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          fontFamily: 'inherit',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        Active
+                      </button>
+                      <button
+                        onClick={() => setEmpView('inactive')}
+                        style={{
+                          padding: '8px 20px',
+                          background: empView === 'inactive' ? 'linear-gradient(135deg,#7c3aed,#4f46e5)' : 'transparent',
+                          color: empView === 'inactive' ? '#fff' : 'var(--label-3)',
+                          border: 'none',
+                          borderRadius: 10,
+                          fontSize: 13,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          fontFamily: 'inherit',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        Inactive/Rejected
+                      </button>
+                    </div>
+                    {empView === 'active' && (
+                      <button onClick={() => setShowAddEmp(true)}
+                        style={{ background: 'linear-gradient(145deg,#FF3B30,#D93025)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 2px 8px rgba(255,59,48,0.28)' }}>
+                        + Add Helper / Employee
+                      </button>
+                    )}
                   </div>
-                  {employees.filter(e => e.status === 'approved').length === 0 ? (
+                  {filteredEmployees.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '60px 20px', background: 'var(--bg-2)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--bg-4)' }}>
                       <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }}>👥</div>
-                      <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--label-3)', marginBottom: 6 }}>No active employees yet</div>
-                      <div style={{ fontSize: 13, color: 'var(--label-4)', marginBottom: 20 }}>Add a helper or employee — admin approval required</div>
-                      <button onClick={() => setShowAddEmp(true)}
-                        style={{ background: 'linear-gradient(145deg,#FF3B30,#D93025)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                        + Add First Employee
-                      </button>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--label-3)', marginBottom: 6 }}>
+                        {empView === 'active' ? 'No active employees yet' : 'No inactive or rejected employees'}
+                      </div>
+                      <div style={{ fontSize: 13, color: 'var(--label-4)', marginBottom: 20 }}>
+                        {empView === 'active' ? 'Add a helper or employee — admin approval required' : 'Switch to Active view to see team members'}
+                      </div>
+                      {empView === 'active' && (
+                        <button onClick={() => setShowAddEmp(true)}
+                          style={{ background: 'linear-gradient(145deg,#FF3B30,#D93025)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                          + Add First Employee
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <EmployeeList
-                      employees={employees.filter(e => e.status === 'approved')}
+                      employees={filteredEmployees}
+                      showStatus={empView === 'inactive'}
                       onInactive={async (emp) => {
                         const newActive = emp.is_active === false;
                         await supabase.from('employees').update({ is_active: newActive }).eq('id', emp.id);
@@ -288,7 +342,7 @@ export default function StoreManagerDashboard() {
               )}
 
               {/* STOCK TAB */}
-              {tab === 'stock' && (
+              {tab === 'inventory' && (
                 <motion.div key="sk" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                   <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16 }}>
                     <div style={{ fontSize:15,fontWeight:700,color:'var(--label)' }}>My Store Inventory</div>
@@ -343,6 +397,19 @@ export default function StoreManagerDashboard() {
                       })}
                     </div>
                   )}
+                </motion.div>
+              )}
+
+              {/* IT SUPPORT TAB */}
+              {tab === 'it-support' && (
+                <motion.div key="it" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  style={{ padding: '32px 28px', maxWidth: 1100, margin: '0 auto' }}>
+                  <ITSupport
+                    userRole="store_manager"
+                    userId={managerData?.id}
+                    userName={session?.name}
+                    userEmail={session?.email}
+                  />
                 </motion.div>
               )}
 

@@ -12,6 +12,7 @@ import { sendWelcomeEmail } from '../utils/email';
 import AppShell from '../components/AppShell';
 import SalaryPaymentSection, { SALARY_PAYMENT_DEFAULTS, salaryPaymentFields } from '../components/SalaryPaymentSection';
 import { runValidations, validateRequired, validateEmail, validatePassword, validatePhone, validateAadhar, validatePAN, validateSalary } from '../utils/validators';
+import ITSupport from '../components/ITSupport';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const NAV = [
@@ -20,6 +21,8 @@ const NAV = [
   { id: 'employees', icon: '👥', label: 'People Requests'   },
   { id: 'stores',    icon: '🏪', label: 'Add Store'         },
   { id: 'people',    icon: '👤', label: 'Admins & Managers' },
+  { id: 'my-team',   icon: '🏢', label: 'My Team'           },
+  { id: 'it-support', icon: '💻', label: 'IT Support'       },
   { id: 'expenses',  icon: '💸', label: 'My Expenses'       },
 ];
 
@@ -573,6 +576,17 @@ export default function DevtaDashboard() {
         .update({ pdf_url: pdfUrl, pdf_generated: true })
         .eq('id', bill.id);
 
+      // 5. Create admin expense entry for inventory cost
+      await supabase.from('admin_expenses').insert({
+        admin_id: admin.id,
+        category: 'inventory_transport',
+        description: `Inventory purchase — ${billNumber} (${batches.length} batch${batches.length !== 1 ? 'es' : ''}, ${totalUnits} units)`,
+        amount: billAmount || totalCost,
+        expense_date: purchaseDate || new Date().toISOString().split('T')[0],
+        payment_method: 'bank_transfer',
+        notes: `Auto-generated on Devta approval. Supplier: ${supplierName || 'N/A'}`,
+      });
+
       showBannerMsg(`✓ ${batches.length} batch${batches.length !== 1 ? 'es' : ''} approved. Bill ${billNumber} generated!`);
       fetchAll();
     } catch (ex) {
@@ -859,6 +873,7 @@ export default function DevtaDashboard() {
         id_proof_url:      urls.id_proof     || null,
         other_doc_url:     urls.other_doc    || null,
         is_active:         true,
+        salary:            parseFloat(newAdmin.salary) || 0,
         ...salaryPaymentFields(newAdmin),
       });
       if (error) throw new Error(error.message);
@@ -1215,15 +1230,26 @@ export default function DevtaDashboard() {
                         Create a new store and assign it to an admin region
                       </div>
                     </div>
-                    <button onClick={() => setShowAddStore(true)}
-                      style={{ padding:'10px 22px',
-                        background:'linear-gradient(135deg,#0288D1,#01579B)',
-                        color:'#fff', border:'none', borderRadius:12,
-                        fontSize:13, fontWeight:700, cursor:'pointer',
-                        fontFamily:'inherit',
-                        boxShadow:'0 4px 14px rgba(2,136,209,0.3)' }}>
-                      🏪 Add New Store
-                    </button>
+                    <div style={{ display:'flex', gap:10 }}>
+                      <button onClick={() => setShowAddStore(true)}
+                        style={{ padding:'10px 22px',
+                          background:'linear-gradient(135deg,#0288D1,#01579B)',
+                          color:'#fff', border:'none', borderRadius:12,
+                          fontSize:13, fontWeight:700, cursor:'pointer',
+                          fontFamily:'inherit',
+                          boxShadow:'0 4px 14px rgba(2,136,209,0.3)' }}>
+                        🏪 Add New Store
+                      </button>
+                      <button onClick={() => {
+                        supabase.from('admins').select('id, full_name, email, city, state, region').eq('is_active', true).order('full_name')
+                          .then(({ data }) => setAdminsList(data || []));
+                      }}
+                        style={{ background:'#E1F5FE', color:'#0288D1', border:'none',
+                          borderRadius:9, padding:'8px 16px', fontSize:12, fontWeight:600,
+                          cursor:'pointer', fontFamily:'inherit' }}>
+                        ↺ Refresh
+                      </button>
+                    </div>
                   </div>
                   <div style={{ textAlign:'center', padding:'60px 20px', background:'#fff',
                     borderRadius:16, border:'1.5px solid #B3E5FC' }}>
@@ -1253,6 +1279,15 @@ export default function DevtaDashboard() {
                         Add new admins to manage regions, and store managers to run stores
                       </div>
                     </div>
+                    <button onClick={() => {
+                      supabase.from('admins').select('id, full_name, email, city, state, region').eq('is_active', true).order('full_name')
+                        .then(({ data }) => setAdminsList(data || []));
+                    }}
+                      style={{ background:'#E1F5FE', color:'#0288D1', border:'none',
+                        borderRadius:9, padding:'8px 16px', fontSize:12, fontWeight:600,
+                        cursor:'pointer', fontFamily:'inherit' }}>
+                      ↺ Refresh
+                    </button>
                   </div>
 
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:16 }}>
@@ -1349,6 +1384,28 @@ export default function DevtaDashboard() {
                 </motion.div>
               )}
 
+              {/* ── My Team tab ── */}
+              {active === 'my-team' && (
+                <motion.div key="my-team"
+                  initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}>
+                  <DevtaMyTeam />
+                </motion.div>
+              )}
+
+              {/* ── IT Support tab ── */}
+              {active === 'it-support' && (
+                <motion.div key="it-support"
+                  initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}
+                  style={{ padding: '32px 28px', maxWidth: 1100, margin: '0 auto' }}>
+                  <ITSupport
+                    userRole="devta"
+                    userId={devtaId}
+                    userName={session?.name || 'Devta'}
+                    userEmail={session?.email}
+                  />
+                </motion.div>
+              )}
+
               {/* ── Devta Expenses tab ── */}
               {active === 'expenses' && (
                 <motion.div key="expenses"
@@ -1363,12 +1420,20 @@ export default function DevtaDashboard() {
                         Record your operational expenses — visible to Vishnu
  </div>
                     </div>
-                    <button onClick={() => setShowExpenseForm(v => !v)}
-                      style={{ padding:'9px 20px', background:'linear-gradient(135deg,#0288D1,#01579B)',
-                        color:'#fff', border:'none', borderRadius:11, fontSize:13, fontWeight:700,
-                        cursor:'pointer', fontFamily:'inherit', boxShadow:'0 3px 12px rgba(2,136,209,0.3)' }}>
-                      + Add Expense
-                    </button>
+                    <div style={{ display:'flex', gap:10 }}>
+                      <button onClick={() => setShowExpenseForm(v => !v)}
+                        style={{ padding:'9px 20px', background:'linear-gradient(135deg,#0288D1,#01579B)',
+                          color:'#fff', border:'none', borderRadius:11, fontSize:13, fontWeight:700,
+                          cursor:'pointer', fontFamily:'inherit', boxShadow:'0 3px 12px rgba(2,136,209,0.3)' }}>
+                        + Add Expense
+                      </button>
+                      <button onClick={fetchAll}
+                        style={{ background:'#E1F5FE', color:'#0288D1', border:'none',
+                          borderRadius:9, padding:'8px 16px', fontSize:12, fontWeight:600,
+                          cursor:'pointer', fontFamily:'inherit' }}>
+                        ↺ Refresh
+                      </button>
+                    </div>
                   </div>
 
                   {/* Add expense form */}
@@ -1653,6 +1718,23 @@ export default function DevtaDashboard() {
                   ))}
                 </div>
 
+                {/* Salary Information */}
+                <div style={{ fontSize:11,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'0.7px',marginTop:4 }}>
+                  Salary Information
+                </div>
+                <div style={{ display:'flex',flexDirection:'column',gap:5 }}>
+                  <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)' }}>Monthly Salary (₹) *</label>
+                  <input type="number" value={newAdmin.salary}
+                    onChange={e => setAdminField('salary', e.target.value)}
+                    placeholder="50000"
+                    style={{ padding:'9px 12px',border:`1.5px solid ${addAdminErr.salary?'var(--accent)':'var(--bg-4)'}`,
+                      borderRadius:10,fontSize:13,fontFamily:'inherit',color:'var(--label)',
+                      background:'var(--bg-3)',outline:'none' }}
+                    onFocus={e=>e.target.style.borderColor='#7c3aed'}
+                    onBlur={e=>e.target.style.borderColor=addAdminErr.salary?'var(--accent)':'var(--bg-4)'} />
+                  {addAdminErr.salary && <span style={{ fontSize:11,color:'var(--error-text)' }}>{addAdminErr.salary}</span>}
+                </div>
+
                 {/* Salary Payment Details */}
                 <div style={{ fontSize:11,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'0.7px',marginTop:4 }}>
                   Salary Payment Details
@@ -1665,9 +1747,9 @@ export default function DevtaDashboard() {
                 </div>
                 <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:10 }}>
                   {[
-                    { k:'photo',        label:'Profile Photo'            },
-                    { k:'aadhar_photo', label:'Aadhar Card Photo'        },
-                    { k:'pan_photo',    label:'PAN Card Photo'           },
+                    { k:'photo',        label:'Profile Photo *'            },
+                    { k:'aadhar_photo', label:'Aadhar Card Photo *'        },
+                    { k:'pan_photo',    label:'PAN Card Photo *'           },
                     { k:'id_proof',     label:'Other Govt ID (optional)' },
                     { k:'other_doc',    label:'Any Other Document'       },
                   ].map(f => (
@@ -1771,5 +1853,252 @@ export default function DevtaDashboard() {
         )}
       </AnimatePresence>
     </AppShell>
+  );
+}
+
+// ── DevtaMyTeam ───────────────────────────────────────────────────────────────
+function DevtaMyTeam() {
+  const [loading, setLoading] = useState(true);
+  const [teamData, setTeamData] = useState([]);
+
+  useEffect(() => {
+    fetchTeamData();
+  }, []);
+
+  const fetchTeamData = async () => {
+    setLoading(true);
+    try {
+      // Fetch all admins with their stores
+      const { data: admins } = await supabase
+        .from('admins')
+        .select('id, full_name, email, phone, city, state, designation, is_active')
+        .eq('is_active', true)
+        .order('full_name');
+
+      // For each admin, fetch their stores and admin team
+      const adminsWithStores = await Promise.all(
+        (admins || []).map(async (admin) => {
+          const { data: stores } = await supabase
+            .from('stores')
+            .select('id, store_name, city, state')
+            .eq('admin_id', admin.id)
+            .eq('is_active', true);
+
+          // Fetch admin team (warehouse/office staff)
+          const { data: adminTeam } = await supabase
+            .from('admin_team')
+            .select('id, full_name, email, phone, designation, is_active')
+            .eq('admin_id', admin.id)
+            .eq('is_active', true);
+
+          // For each store, fetch managers
+          const storesWithManagers = await Promise.all(
+            (stores || []).map(async (store) => {
+              const { data: managers } = await supabase
+                .from('store_managers')
+                .select('id, full_name, email, phone, designation, is_active')
+                .eq('store_id', store.id)
+                .eq('is_active', true);
+
+              // For each manager, fetch employees
+              const managersWithEmployees = await Promise.all(
+                (managers || []).map(async (manager) => {
+                  const { data: employees } = await supabase
+                    .from('employees')
+                    .select('id, full_name, email, phone, designation, is_active')
+                    .eq('store_id', store.id)
+                    .eq('is_active', true);
+
+                  return {
+                    ...manager,
+                    employees: employees || [],
+                  };
+                })
+              );
+
+              return {
+                ...store,
+                managers: managersWithEmployees,
+              };
+            })
+          );
+
+          return {
+            ...admin,
+            stores: storesWithManagers,
+            adminTeam: adminTeam || [],
+          };
+        })
+      );
+
+      setTeamData(adminsWithStores);
+    } catch (error) {
+      console.error('Error fetching team data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: 60, color: 'var(--label-4)', fontSize: 14 }}>
+        Loading team data…
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ fontFamily: "'Inter',-apple-system,sans-serif" }}>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 22, fontWeight: 700, color: '#01579B', letterSpacing: '-0.3px', marginBottom: 4 }}>
+          🏢 My Team
+        </div>
+        <div style={{ fontSize: 13, color: '#4FC3F7' }}>
+          Complete hierarchy — Admins → Store Managers → Employees
+        </div>
+      </div>
+
+      {teamData.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 60, background: 'var(--bg-2)', borderRadius: 16, border: '1px solid var(--bg-4)' }}>
+          <div style={{ fontSize: 48, opacity: 0.15, marginBottom: 14 }}>🏢</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--label-3)', marginBottom: 6 }}>No team members yet</div>
+          <div style={{ fontSize: 13, color: 'var(--label-4)' }}>Add admins and stores to build your team</div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {teamData.map((admin) => (
+            <div key={admin.id} style={{ background: 'var(--bg-2)', border: '1px solid var(--bg-4)', borderRadius: 16, overflow: 'hidden' }}>
+              {/* Admin */}
+              <div style={{ padding: '18px 20px', background: '#F5F3FF', borderBottom: '1px solid #DDD6FE' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: '#fff', fontWeight: 700 }}>
+                    {admin.full_name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#7c3aed', marginBottom: 2 }}>
+                      {admin.full_name}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#6B7280', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <span>📧 {admin.email}</span>
+                      {admin.phone && <span>📱 {admin.phone}</span>}
+                      {admin.city && <span>📍 {admin.city}</span>}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#7c3aed', background: '#E9D5FF', padding: '4px 10px', borderRadius: 20 }}>
+                    {admin.designation || 'Admin'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Admin Team Section */}
+              {admin.adminTeam.length > 0 && (
+                <div style={{ padding: '16px 20px', background: '#FAFAFA', borderBottom: '1px solid #E5EEB' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#7c3aed', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>🏭</span>
+                    <span>Admin Team (Warehouse/Office)</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+                    {admin.adminTeam.map((member) => (
+                      <div key={member.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#fff', border: '1px solid #E5E7EB', borderRadius: 10 }}>
+                        <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#A78BFA,#8B5CF6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: '#fff', fontWeight: 700 }}>
+                          {member.full_name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#7c3aed', marginBottom: 1 }}>
+                            {member.full_name}
+                          </div>
+                          <div style={{ fontSize: 10, color: '#6B7280', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            <span>📧 {member.email}</span>
+                            {member.phone && <span>📱 {member.phone}</span>}
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 9, fontWeight: 600, color: '#7c3aed', background: '#E9D5FF', padding: '3px 8px', borderRadius: 10 }}>
+                          {member.designation || 'Staff'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Stores */}
+              {admin.stores.length === 0 ? (
+                <div style={{ padding: '16px 20px', fontSize: 13, color: 'var(--label-4)' }}>
+                  No stores assigned
+                </div>
+              ) : (
+                <div style={{ padding: '16px 20px' }}>
+                  {admin.stores.map((store) => (
+                    <div key={store.id} style={{ marginBottom: 16, paddingLeft: 16, borderLeft: '2px solid #E5E7EB' }}>
+                      {/* Store */}
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span>🏪</span>
+                        <span>{store.store_name}</span>
+                        {store.city && <span style={{ fontSize: 11, color: '#6B7280', fontWeight: 400 }}>· {store.city}</span>}
+                      </div>
+
+                      {/* Managers */}
+                      {store.managers.length === 0 ? (
+                        <div style={{ fontSize: 12, color: 'var(--label-4)', marginBottom: 12 }}>No managers</div>
+                      ) : (
+                        store.managers.map((manager) => (
+                          <div key={manager.id} style={{ marginBottom: 12, paddingLeft: 16, borderLeft: '2px solid #E5E7EB' }}>
+                            {/* Manager */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: '#007AFF', fontWeight: 700 }}>
+                                {manager.full_name.slice(0, 2).toUpperCase()}
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 14, fontWeight: 600, color: '#007AFF', marginBottom: 1 }}>
+                                  {manager.full_name}
+                                </div>
+                                <div style={{ fontSize: 11, color: '#6B7280', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                  <span>📧 {manager.email}</span>
+                                  {manager.phone && <span>📱 {manager.phone}</span>}
+                                </div>
+                              </div>
+                              <div style={{ fontSize: 10, fontWeight: 600, color: '#007AFF', background: '#DBEAFE', padding: '3px 8px', borderRadius: 12 }}>
+                                {manager.designation || 'Manager'}
+                              </div>
+                            </div>
+
+                            {/* Employees */}
+                            {manager.employees.length === 0 ? (
+                              <div style={{ fontSize: 11, color: 'var(--label-4)', paddingLeft: 46 }}>No employees</div>
+                            ) : (
+                              <div style={{ paddingLeft: 46, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                {manager.employees.map((employee) => (
+                                  <div key={employee.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--bg-3)', borderRadius: 8 }}>
+                                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#15803D', fontWeight: 700 }}>
+                                      {employee.full_name.slice(0, 2).toUpperCase()}
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                      <div style={{ fontSize: 12, fontWeight: 600, color: '#15803D' }}>
+                                        {employee.full_name}
+                                      </div>
+                                      <div style={{ fontSize: 10, color: '#6B7280', display: 'flex', gap: 6 }}>
+                                        <span>📧 {employee.email}</span>
+                                        {employee.phone && <span>📱 {employee.phone}</span>}
+                                      </div>
+                                    </div>
+                                    <div style={{ fontSize: 9, fontWeight: 600, color: '#15803D', background: '#DCFCE7', padding: '2px 6px', borderRadius: 10 }}>
+                                      {employee.designation || 'Staff'}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

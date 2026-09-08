@@ -16,31 +16,150 @@ const MODES = [
   { id: 'cheque',        icon: '📄', label: 'Cheque'        },
 ];
 
-function Inp({ label, value, onChange, placeholder, required, hint, mono }) {
+const INDIAN_BANKS = [
+  'State Bank of India',
+  'Punjab National Bank',
+  'Bank of Baroda',
+  'Canara Bank',
+  'Union Bank of India',
+  'Bank of Maharashtra',
+  'Indian Bank',
+  'Indian Overseas Bank',
+  'Central Bank of India',
+  'UCO Bank',
+  'Bank of India',
+  'Punjab & Sind Bank',
+  'HDFC Bank',
+  'ICICI Bank',
+  'Axis Bank',
+  'Kotak Mahindra Bank',
+  'IndusInd Bank',
+  'Yes Bank',
+  'IDFC First Bank',
+  'Federal Bank',
+  'South Indian Bank',
+  'Karur Vysya Bank',
+  'Lakshmi Vilas Bank',
+  'RBL Bank',
+  'Dhanlaxmi Bank',
+  'Bandhan Bank',
+  'IDBI Bank',
+  'Jammu & Kashmir Bank',
+  'Andhra Pradesh Grameena Vikas Bank',
+  'Uttar Bihar Gramin Bank',
+  'Prathama UP Gramin Bank',
+  'Madhya Pradesh Gramin Bank',
+  'Odisha Gramya Bank',
+  'Chhattisgarh Rajya Gramin Bank',
+  'Himachal Pradesh Gramin Bank',
+  'Jharkhand Rajya Gramin Bank',
+  'Kerala Gramin Bank',
+  'Maharashtra Gramin Bank',
+  'Rajasthan Marudhara Gramin Bank',
+  'Saptagiri Grameena Bank',
+  'Telangana Grameena Bank',
+  'Uttarakhand Gramin Bank',
+  'Bangiya Gramin Vikash Bank',
+  'Assam Gramin Vikash Bank',
+  'Purvanchal Bank',
+  'Paschim Banga Gramin Bank',
+  'Uttar Banga Kshetriya Gramin Bank',
+  'Baroda Gujarat Gramin Bank',
+  'Dena Gujarat Gramin Bank',
+  'Saurashtra Gramin Bank',
+  'Nainital Bank',
+  'Citibank India',
+  'Standard Chartered Bank',
+  'HSBC Bank India',
+  'Deutsche Bank',
+  'Bank of America',
+  'American Express Banking Corp',
+  'BNP Paribas',
+  'Credit Agricole',
+  'Societe Generale',
+  'ABN AMRO Bank',
+  'Royal Bank of Scotland',
+  'Bank of Tokyo-Mitsubishi UFJ',
+  'Sumitomo Mitsui Banking Corporation',
+  'DBS Bank India',
+  'United Overseas Bank',
+  'Bank of Nova Scotia',
+  'Emirates NBD',
+  'Qatar National Bank',
+  'National Bank of Fujairah',
+  'Abu Dhabi Commercial Bank',
+  'Mashreq Bank',
+  'Industrial and Commercial Bank of China',
+  'China Construction Bank',
+  'Bank of China',
+  'Agricultural Bank of China',
+  'Other',
+];
+
+function Inp({ label, value, onChange, placeholder, required, hint, mono, isSelect, options, showCustomInput, customValue, onCustomChange }) {
+  const inputValue = value ?? '';
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--label-3)' }}>
         {label}{required && <span style={{ color: '#B91C1C' }}> *</span>}
       </label>
-      <input
-        value={value || ''}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        style={{
-          padding: '8px 10px', fontSize: 13, borderRadius: 8,
-          border: '1.5px solid var(--bg-4)', background: 'var(--bg-3)',
-          color: 'var(--label)', fontFamily: mono ? 'monospace' : 'inherit',
-          outline: 'none', boxSizing: 'border-box', width: '100%',
-        }}
-        onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-        onBlur={e => e.target.style.borderColor = 'var(--bg-4)'}
-      />
+      {isSelect ? (
+        <>
+          <select
+            value={inputValue}
+            onChange={e => onChange(e.target.value)}
+            style={{
+              padding: '8px 10px', fontSize: 13, borderRadius: 8,
+              border: '1.5px solid var(--bg-4)', background: 'var(--bg-3)',
+              color: 'var(--label)', fontFamily: 'inherit',
+              outline: 'none', boxSizing: 'border-box', width: '100%',
+            }}
+            onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+            onBlur={e => e.target.style.borderColor = 'var(--bg-4)'}
+          >
+            <option value="">Select bank</option>
+            {options.map(opt => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+          {showCustomInput && (
+            <input
+              value={customValue}
+              onChange={e => onCustomChange(e.target.value)}
+              placeholder="Enter bank name"
+              style={{
+                marginTop: 4,
+                padding: '8px 10px', fontSize: 13, borderRadius: 8,
+                border: '1.5px solid var(--bg-4)', background: 'var(--bg-3)',
+                color: 'var(--label)', fontFamily: 'inherit',
+                outline: 'none', boxSizing: 'border-box', width: '100%',
+              }}
+              onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+              onBlur={e => e.target.style.borderColor = 'var(--bg-4)'}
+            />
+          )}
+        </>
+      ) : (
+        <input
+          value={inputValue}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          style={{
+            padding: '8px 10px', fontSize: 13, borderRadius: 8,
+            border: '1.5px solid var(--bg-4)', background: 'var(--bg-3)',
+            color: 'var(--label)', fontFamily: mono ? 'monospace' : 'inherit',
+            outline: 'none', boxSizing: 'border-box', width: '100%',
+          }}
+          onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+          onBlur={e => e.target.style.borderColor = 'var(--bg-4)'}
+        />
+      )}
       {hint && <div style={{ fontSize: 11, color: 'var(--label-4)' }}>{hint}</div>}
     </div>
   );
 }
 
-export default function SalaryPaymentSection({ form, onChange }) {
+export default function SalaryPaymentSection({ form, onChange, customBankName, onCustomBankNameChange }) {
   const mode = form.salary_mode || 'cash';
 
   return (
@@ -85,7 +204,12 @@ export default function SalaryPaymentSection({ form, onChange }) {
             <Inp label="Bank Name" required
               value={form.bank_name}
               onChange={v => onChange('bank_name', v)}
-              placeholder="State Bank of India" />
+              placeholder="State Bank of India"
+              isSelect={true}
+              options={INDIAN_BANKS}
+              showCustomInput={form.bank_name === 'Other'}
+              customValue={customBankName}
+              onCustomChange={onCustomBankNameChange} />
             <Inp label="Account Number" required mono
               value={form.bank_account_no}
               onChange={v => onChange('bank_account_no', v)}
@@ -133,15 +257,16 @@ export default function SalaryPaymentSection({ form, onChange }) {
 }
 
 /** Returns the salary payment fields to include in a DB insert/update */
-export function salaryPaymentFields(form) {
+export function salaryPaymentFields(form, customBankNameOverride = null) {
+  const finalBankName = customBankNameOverride || form.bank_name?.trim() || null;
   return {
     salary_mode:      form.salary_mode      || 'cash',
     bank_holder_name: form.bank_holder_name?.trim() || null,
-    bank_name:        form.bank_name?.trim()        || null,
+    bank_name:        finalBankName,
     bank_account_no:  form.bank_account_no?.trim()  || null,
     bank_ifsc:        form.bank_ifsc?.trim().toUpperCase() || null,
     bank_branch:      form.bank_branch?.trim()      || null,
-    upi_id:           form.upi_id?.trim()           || null,
+    upi_id:           form.upi_id?.trim()            || null,
   };
 }
 

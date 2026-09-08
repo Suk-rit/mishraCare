@@ -36,9 +36,10 @@ const INITIAL = {
 
 export default function AddManagerModal({ store, onClose, onSuccess }) {
   const [form,    setForm]    = useState(INITIAL);
-  const [files,   setFiles]   = useState({ photo: null, aadhar_photo: null, id_proof: null });
+  const [files,   setFiles]   = useState({ photo: null, aadhar_photo: null, pan_photo: null, id_proof: null });
   const [errors,  setErrors]  = useState({});
   const [loading, setLoading] = useState(false);
+  const [customBankName, setCustomBankName] = useState('');
 
   const setField = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const setFile  = (k, v) => setFiles(f => ({ ...f, [k]: v }));
@@ -55,14 +56,20 @@ export default function AddManagerModal({ store, onClose, onSuccess }) {
       pincode:      () => form.pincode.trim() ? validatePincode(form.pincode) : null,
       photo:        () => !files.photo        ? 'Profile photo is required'      : null,
       aadhar_photo: () => !files.aadhar_photo ? 'Aadhaar card photo is required' : null,
+      pan_photo:    () => !files.pan_photo    ? 'PAN card photo is required'     : null,
     };
 
     // Add bank details validation if salary mode is bank_transfer or cheque
     if (form.salary_mode === 'bank_transfer' || form.salary_mode === 'cheque') {
+      const finalBankName = form.bank_name === 'Other' ? customBankName.trim() : form.bank_name.trim();
       validations.bank_holder_name = () => validateRequired(form.bank_holder_name, 'Account holder name');
-      validations.bank_name = () => validateRequired(form.bank_name, 'Bank name');
+      validations.bank_name = () => validateRequired(finalBankName, 'Bank name');
       validations.bank_account_no = () => validateRequired(form.bank_account_no, 'Account number');
       validations.bank_ifsc = () => validateRequired(form.bank_ifsc, 'IFSC code');
+      
+      if (form.bank_name === 'Other' && !finalBankName) {
+        validations.custom_bank_name = () => 'Please enter the bank name';
+      }
     }
 
     // Add UPI validation if salary mode is upi
@@ -82,8 +89,11 @@ export default function AddManagerModal({ store, onClose, onSuccess }) {
       const urls = await uploadFiles('manager-documents', {
         photo:        files.photo,
         aadhar_photo: files.aadhar_photo,
+        pan_photo:    files.pan_photo,
         id_proof:     files.id_proof,
       }, `stores/${store.id}`);
+
+      const finalBankName = form.bank_name === 'Other' ? customBankName.trim() : form.bank_name.trim();
 
       const { error } = await supabase.from('store_managers').insert({
         store_id:         store.id,
@@ -105,9 +115,10 @@ export default function AddManagerModal({ store, onClose, onSuccess }) {
         salary:           form.salary ? parseFloat(form.salary) : null,
         salary_type:      form.salary_type,
         employment_type:  form.employment_type,
-        ...salaryPaymentFields(form),
+        ...salaryPaymentFields(form, form.bank_name === 'Other' ? customBankName.trim() : form.bank_name.trim()),
         photo_url:        urls.photo,
         aadhar_photo_url: urls.aadhar_photo,
+        pan_photo_url:    urls.pan_photo,
         id_proof_url:     urls.id_proof,
       });
 
@@ -236,7 +247,12 @@ export default function AddManagerModal({ store, onClose, onSuccess }) {
           {/* Documents */}
           <div className="form-section">
             <div className="form-section-title">Salary Payment Details</div>
-            <SalaryPaymentSection form={form} onChange={setField} />
+            <SalaryPaymentSection 
+              form={form} 
+              onChange={setField} 
+              customBankName={customBankName}
+              onCustomBankNameChange={setCustomBankName}
+            />
           </div>
 
           <div className="form-section">
@@ -249,6 +265,10 @@ export default function AddManagerModal({ store, onClose, onSuccess }) {
               <div>
                 <FileUpload label="Aadhar Card Photo" required value={files.aadhar_photo} onChange={v => setFile('aadhar_photo', v)} />
                 {errors.aadhar_photo && <span style={{ fontSize: 11, color: 'var(--error-text)' }}>{errors.aadhar_photo}</span>}
+              </div>
+              <div>
+                <FileUpload label="PAN Card Photo" required value={files.pan_photo} onChange={v => setFile('pan_photo', v)} />
+                {errors.pan_photo && <span style={{ fontSize: 11, color: 'var(--error-text)' }}>{errors.pan_photo}</span>}
               </div>
               <FileUpload label="Other ID Proof (optional)" value={files.id_proof} onChange={v => setFile('id_proof', v)} />
             </div>

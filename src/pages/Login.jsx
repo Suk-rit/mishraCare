@@ -7,6 +7,7 @@ import { enterFullscreen, startFullscreenGuard } from '../utils/fullscreen';
 import Toast from '../components/Toast';
 import VishnuLogin from './VishnuLogin';
 import DevtaLogin from './DevtaLogin';
+import PasswordInput from '../components/PasswordInput';
 
 // ── Pure CSS leaf styles injected once ────────────────────────────────────
 const LEAF_CSS = `
@@ -92,6 +93,51 @@ function useToast() {
 
 function EarthInput({ icon, type, placeholder, value, onChange, error, autoComplete }) {
   const [focused, setFocused] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  if (type === 'password') {
+    return (
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ position: 'relative' }}>
+          <span style={{
+            position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)',
+            fontSize: 15, pointerEvents: 'none', opacity: focused ? 1 : 0.55,
+          }}>{icon}</span>
+          <input
+            type={showPassword ? 'text' : 'password'} placeholder={placeholder} value={value}
+            onChange={e => onChange(e.target.value)}
+            autoComplete={autoComplete}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            style={{
+              width: '100%', padding: '12px 45px 12px 42px',
+              background: focused ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.65)',
+              border: `1.5px solid ${error ? '#E57373' : focused ? '#2E7D32' : 'rgba(0,100,0,0.18)'}`,
+              borderRadius: 11, fontSize: 14, color: '#1B4D1F',
+              fontFamily: 'inherit', outline: 'none', transition: 'all 0.18s',
+              boxSizing: 'border-box',
+              boxShadow: focused ? '0 0 0 3px rgba(46,125,50,0.13)' : 'none',
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            style={{
+              position: 'absolute', right: 13, top: '50%', transform: 'translateY(-50%)',
+              background: 'none', border: 'none', cursor: 'pointer', fontSize: 16,
+              padding: 4, opacity: 0.6, transition: 'opacity 0.2s',
+            }}
+            onMouseEnter={(e) => e.target.style.opacity = '1'}
+            onMouseLeave={(e) => e.target.style.opacity = '0.6'}
+          >
+            {showPassword ? '🙈' : '👁️'}
+          </button>
+        </div>
+        {error && <div style={{ fontSize: 11, color: '#C62828', marginTop: 4 }}>⚠ {error}</div>}
+      </div>
+    );
+  }
+
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ position: 'relative' }}>

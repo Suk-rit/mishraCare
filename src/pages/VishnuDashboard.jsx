@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../utils/supabase';
 import { clearSession } from '../utils/session';
 import { getDateRange } from '../utils/analytics';
@@ -8,6 +8,7 @@ import RefreshButton from '../components/RefreshButton';
 import AppShell from '../components/AppShell';
 import VishnuTeam from '../components/VishnuTeam';
 import InternalTeam from '../components/InternalTeam';
+import VishnuITSupport from '../components/VishnuITSupport';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', { maximumFractionDigits:0 }); }
@@ -677,6 +678,7 @@ export default function VishnuDashboard() {
         { id:'team',      icon:'👥', label:'Our Team'       },
         { id:'internal',  icon:'🌟', label:'Internal Team'  },
         { id:'cash',      icon:'💰', label:'Cash Register'  },
+        { id:'it-support', icon:'💻', label:'IT Support'    },
         { id:'reports',   icon:'📝', label:'Reports'        },
       ]}
       active={tab}
@@ -691,39 +693,55 @@ export default function VishnuDashboard() {
     >
       <div style={{ padding:'28px', maxWidth:1300, margin:'0 auto' }}>
         {/* Header */}
-        <div style={{ marginBottom:20 }}>
-          <div style={{ fontSize:26, fontWeight:700, color:'var(--label)',
-            letterSpacing:'-0.4px', marginBottom:4 }}>
-            Welcome, <span style={{ color:'#7c3aed' }}>Vishnu</span> 🕉️
+        {tab === 'overview' ? (
+          <div style={{ marginBottom:20 }}>
+            <div style={{ fontSize:26, fontWeight:700, color:'var(--label)',
+              letterSpacing:'-0.4px', marginBottom:4 }}>
+              Welcome, <span style={{ color:'#7c3aed' }}>Vishnu</span> 🕉️
+            </div>
+            <div style={{ fontSize:14, color:'var(--label-4)' }}>
+              Full system overview — all admins, stores and financial data
+            </div>
           </div>
-          <div style={{ fontSize:14, color:'var(--label-4)' }}>
-            Full system overview — all admins, stores and financial data
+        ) : (
+          <div style={{ marginBottom:20 }}>
+            <div style={{ fontSize:26, fontWeight:700, color:'var(--label)',
+              letterSpacing:'-0.4px' }}>
+              {tab === 'analytics' ? '📊 Analytics' :
+               tab === 'internal' ? '👥 Internal Team' :
+               tab === 'cash' ? '💰 Cash Register' :
+               tab === 'team' ? '👥 Our Team' :
+               tab === 'it-support' ? '💻 IT Support' :
+               tab === 'reports' ? '📝 Reports' : ''}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Stats */}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))',
-          gap:12, marginBottom:20 }}>
-          {[
-            { label:'Admins',    value:stats.admins,    color:'#7c3aed', bg:'#F5F3FF' },
-            { label:'Stores',    value:stats.stores,    color:'#FF3B30', bg:'#FFF1F0' },
-            { label:'Managers',  value:stats.managers,  color:'#007AFF', bg:'#EFF6FF' },
-            { label:'Employees', value:stats.employees, color:'#34C759', bg:'#F0FDF4' },
-          ].map((s,i) => (
-            <motion.div key={i} initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }}
-              transition={{ delay:i*0.06 }}
-              style={{ background:s.bg, border:`1px solid ${s.color}22`,
-                borderRadius:14, padding:'14px 16px', boxShadow:'var(--shadow-sm)' }}>
-              <div style={{ fontSize:11, fontWeight:700, color:s.color,
-                textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:6 }}>
-                {s.label}
-              </div>
-              <div style={{ fontSize:28, fontWeight:800, color:s.color, lineHeight:1 }}>
-                {loading ? '…' : s.value}
-              </div>
-            </motion.div>
-          ))}
-        </div>
+        {/* Stats - only show in overview tab */}
+        {tab === 'overview' && (
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))',
+            gap:12, marginBottom:20 }}>
+            {[
+              { label:'Admins',    value:stats.admins,    color:'#7c3aed', bg:'#F5F3FF' },
+              { label:'Stores',    value:stats.stores,    color:'#FF3B30', bg:'#FFF1F0' },
+              { label:'Managers',  value:stats.managers,  color:'#007AFF', bg:'#EFF6FF' },
+              { label:'Employees', value:stats.employees, color:'#34C759', bg:'#F0FDF4' },
+            ].map((s,i) => (
+              <motion.div key={i} initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }}
+                transition={{ delay:i*0.06 }}
+                style={{ background:s.bg, border:`1px solid ${s.color}22`,
+                  borderRadius:14, padding:'14px 16px', boxShadow:'var(--shadow-sm)' }}>
+                <div style={{ fontSize:11, fontWeight:700, color:s.color,
+                  textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:6 }}>
+                  {s.label}
+                </div>
+                <div style={{ fontSize:28, fontWeight:800, color:s.color, lineHeight:1 }}>
+                  {loading ? '…' : s.value}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
 
         {/* Tab content */}
         <AnimatePresence mode="wait">
@@ -1001,6 +1019,14 @@ export default function VishnuDashboard() {
             </motion.div>
           )}
 
+          {/* ── IT Support tab ── */}
+          {tab === 'it-support' && (
+            <motion.div key="it-support"
+              initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}>
+              <VishnuITSupport />
+            </motion.div>
+          )}
+
           {/* ── Reports tab ── */}
           {tab === 'reports' && (
             <motion.div key="reports"
@@ -1083,9 +1109,6 @@ function VishnuReports() {
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between',
         marginBottom:22, flexWrap:'wrap', gap:12 }}>
         <div>
-          <div style={{ fontSize:20, fontWeight:700, color:'var(--label)', letterSpacing:'-0.3px', marginBottom:3 }}>
-            📝 Reports
-          </div>
           <div style={{ fontSize:13, color:'var(--label-4)' }}>
             Create financial reports for any period. Snapshot saved permanently.
           </div>

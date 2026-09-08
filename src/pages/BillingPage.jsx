@@ -737,8 +737,11 @@ export default function BillingPage({ storeId, managerId }) {
                           </div>
                         </div>
                         <div style={{ textAlign:'right', flexShrink:0 }}>
-                          <div style={{ fontSize:13, fontWeight:800, color:'var(--accent)' }}>{fmt(lineTotal)}</div>
-                          <div style={{ fontSize:10, color:'var(--label-4)' }}>{fmt(item.sellPrice)}/{item.packUnit}</div>
+                          <div style={{ fontSize:13, fontWeight:800, color:'var(--accent)' }}>{fmt(item.mrpPack / item.packSize)}/{item.packUnit}</div>
+                          <div style={{ fontSize:10, color:'var(--label-4)' }}>
+                            Given: {fmt(item.sellPrice)}/{item.packUnit}
+                            {item.discountPct > 0 && <span style={{ color:'#FF3B30', fontWeight:600 }}> · {item.discountPct}% off</span>}
+                          </div>
                         </div>
                         <button onClick={() => removeFromCart(item.invId)}
                           style={{ width:22, height:22, borderRadius:6, border:'none',

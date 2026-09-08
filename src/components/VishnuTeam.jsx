@@ -9,7 +9,7 @@ const SALARY_MODE_LABEL = {
   cheque: '📋 Cheque',
 };
 
-function PaymentBadge({ mode, bankName, bankAccount, bankIfsc, upiId }) {
+function PaymentBadge({ mode, bankName, bankAccount, bankIfsc, upiId, bankHolderName, bankBranch }) {
   const label = SALARY_MODE_LABEL[mode] || (mode ? mode : '💵 Cash');
   return (
     <div style={{ marginTop: 6 }}>
@@ -25,10 +25,18 @@ function PaymentBadge({ mode, bankName, bankAccount, bankIfsc, upiId }) {
       }}>
         {label}
       </span>
-      {(mode === 'bank_transfer' || mode === 'upi') && (
-        <div style={{ fontSize: 10, color: 'var(--label-4)', marginTop: 3, paddingLeft: 2 }}>
-          {mode === 'bank_transfer' && bankName && <span>{bankName}{bankAccount ? ` · ****${String(bankAccount).slice(-4)}` : ''}{bankIfsc ? ` · ${bankIfsc}` : ''}</span>}
-          {mode === 'upi' && upiId && <span>{upiId}</span>}
+      {mode === 'bank_transfer' && (
+        <div style={{ fontSize: 11, color: 'var(--label-4)', marginTop: 4, paddingLeft: 2, lineHeight: 1.5 }}>
+          {bankHolderName && <div>👤 <strong>Holder:</strong> {bankHolderName}</div>}
+          {bankName && <div>🏦 <strong>Bank:</strong> {bankName}</div>}
+          {bankAccount && <div>💳 <strong>Account:</strong> {bankAccount}</div>}
+          {bankIfsc && <div>🔢 <strong>IFSC:</strong> {bankIfsc}</div>}
+          {bankBranch && <div>📍 <strong>Branch:</strong> {bankBranch}</div>}
+        </div>
+      )}
+      {mode === 'upi' && upiId && (
+        <div style={{ fontSize: 11, color: 'var(--label-4)', marginTop: 4, paddingLeft: 2 }}>
+          📲 <strong>UPI ID:</strong> {upiId}
         </div>
       )}
     </div>
@@ -48,11 +56,12 @@ export default function VishnuTeam() {
     setLoading(true);
     setError(null);
     try {
-      // 1. Fetch all admins (active + inactive, so nothing is hidden)
+      // 1. Fetch only active admins
       // salary, salary_type added by migration 019; salary_mode, bank_* added by migration 017
       const { data: admins, error: adminsErr } = await supabase
         .from('admins')
-        .select('id, full_name, email, city, state, region, designation, is_active, salary, salary_type, salary_mode, bank_name, bank_account_no, bank_ifsc, bank_branch, upi_id')
+        .select('id, full_name, email, city, state, region, designation, is_active, salary, salary_type, salary_mode, bank_holder_name, bank_name, bank_account_no, bank_ifsc, bank_branch, upi_id')
+        .eq('is_active', true)
         .order('full_name');
 
       if (adminsErr) throw adminsErr;
@@ -76,25 +85,28 @@ export default function VishnuTeam() {
         if (storeIds.length > 0) {
           const { data: mgrs, error: mgrsErr } = await supabase
             .from('store_managers')
-            .select('id, full_name, email, phone, designation, salary, salary_mode, salary_type, bank_name, bank_account_no, bank_ifsc, upi_id, store_id, is_active')
-            .in('store_id', storeIds);
+            .select('id, full_name, email, phone, designation, salary, salary_mode, salary_type, bank_holder_name, bank_name, bank_account_no, bank_ifsc, upi_id, store_id, is_active')
+            .in('store_id', storeIds)
+            .eq('is_active', true);
           if (mgrsErr) console.error('managers error', mgrsErr);
           managers = mgrs || [];
 
           const { data: emps, error: empsErr } = await supabase
             .from('employees')
-            .select('id, full_name, email, phone, designation, salary, salary_mode, salary_type, bank_name, bank_account_no, bank_ifsc, upi_id, store_id, status, is_active')
+            .select('id, full_name, email, phone, designation, salary, salary_mode, salary_type, bank_holder_name, bank_name, bank_account_no, bank_ifsc, upi_id, store_id, status, is_active')
             .in('store_id', storeIds)
-            .eq('status', 'approved');
+            .eq('status', 'approved')
+            .eq('is_active', true);
           if (empsErr) console.error('employees error', empsErr);
           employees = emps || [];
         }
 
-        // 4. Admin team (warehouse staff)
+        // 4. Admin team (warehouse staff) - only active
         const { data: adminTeam, error: atErr } = await supabase
           .from('admin_team')
-          .select('id, full_name, email, phone, designation, salary, salary_mode, salary_type, bank_name, bank_account_no, bank_ifsc, upi_id, is_active')
-          .eq('admin_id', admin.id);
+          .select('id, full_name, email, phone, designation, salary, salary_mode, salary_type, bank_holder_name, bank_name, bank_account_no, bank_ifsc, upi_id, is_active')
+          .eq('admin_id', admin.id)
+          .eq('is_active', true);
         if (atErr) console.error('admin_team error', atErr);
 
         // 5. Group by store
@@ -158,22 +170,11 @@ export default function VishnuTeam() {
 
   return (
     <div style={{ fontFamily: "'Inter',-apple-system,sans-serif" }}>
-      {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--label)', letterSpacing: '-0.3px', marginBottom: 6 }}>
-          👥 Our Team
-        </div>
-        <div style={{ fontSize: 14, color: 'var(--label-4)' }}>
-          Full hierarchy — Admins → Stores → Managers → Employees, with salary & payment details
-        </div>
-      </div>
-
       {/* Stats Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(130px,1fr))', gap: 12, marginBottom: 20 }}>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
         {[
           { label: 'Admins', count: totalAdmins, color: '#7c3aed', bg: '#F5F3FF' },
-          { label: 'Warehouse Staff', count: totalWarehouse, color: '#6366f1', bg: '#EEF2FF' },
-          { label: 'Store Managers', count: totalManagers, color: '#0288D1', bg: '#E0F2FE' },
+          { label: 'Managers', count: totalManagers, color: '#0288D1', bg: '#E1F5FE' },
           { label: 'Employees', count: totalEmployees, color: '#15803D', bg: '#F0FDF4' },
         ].map(s => (
           <div key={s.label} style={{ background: s.bg, borderRadius: 12, padding: '14px 16px', border: `1px solid ${s.color}22` }}>
@@ -289,6 +290,8 @@ export default function VishnuTeam() {
                       bankAccount={admin.bank_account_no}
                       bankIfsc={admin.bank_ifsc}
                       upiId={admin.upi_id}
+                      bankHolderName={admin.bank_holder_name}
+                      bankBranch={admin.bank_branch}
                     />
                   )}
                 </div>

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../utils/supabase';
 import { getSession } from '../utils/session';
-import AddManagerModal from '../components/AddManagerModal';
 import RefreshButton   from '../components/RefreshButton';
 import '../styles/stores.css';
 
@@ -10,7 +9,6 @@ export default function Stores({ onStoreClick }) {
   const [stores,          setStores]       = useState([]);
   const [managers,        setManagers]     = useState({});
   const [loading,         setLoading]      = useState(true);
-  const [addManagerStore, setAddManagerStore] = useState(null);
   const [notifications,   setNotifications]= useState([]);
   const [dismissedNotifs, setDismissedNotifs] = useState(new Set());
 
@@ -183,10 +181,6 @@ export default function Stores({ onStoreClick }) {
                       onClick={e => { e.stopPropagation(); onStoreClick?.(store); }}>
                       View →
                     </button>
-                    <button className="btn-sm btn-sm-primary"
-                      onClick={e => { e.stopPropagation(); setAddManagerStore(store); }}>
-                      + Manager
-                    </button>
                   </div>
                 </motion.div>
               );
@@ -195,12 +189,6 @@ export default function Stores({ onStoreClick }) {
         </div>
       )}
 
-      {/* Modals */}
-      <AnimatePresence>
-        {addManagerStore && (
-          <AddManagerModal store={addManagerStore} onClose={() => setAddManagerStore(null)} onSuccess={() => { setAddManagerStore(null); fetchData(); }} />
-        )}
-      </AnimatePresence>
     </div>
   );
 }

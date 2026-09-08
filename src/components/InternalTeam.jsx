@@ -2,6 +2,67 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../utils/supabase';
 import { uploadFiles } from '../utils/storage';
+import FileUpload from './FileUpload';
+import '../styles/login.css';
+
+const INDIAN_BANKS = [
+  'State Bank of India',
+  'Punjab National Bank',
+  'Bank of Baroda',
+  'Canara Bank',
+  'Union Bank of India',
+  'Bank of Maharashtra',
+  'Indian Bank',
+  'Indian Overseas Bank',
+  'Central Bank of India',
+  'UCO Bank',
+  'Bank of India',
+  'Punjab & Sind Bank',
+  'HDFC Bank',
+  'ICICI Bank',
+  'Axis Bank',
+  'Kotak Mahindra Bank',
+  'IndusInd Bank',
+  'Yes Bank',
+  'IDFC First Bank',
+  'Federal Bank',
+  'South Indian Bank',
+  'Karur Vysya Bank',
+  'Lakshmi Vilas Bank',
+  'RBL Bank',
+  'Dhanlaxmi Bank',
+  'Bandhan Bank',
+  'IDBI Bank',
+  'Jammu & Kashmir Bank',
+  'Andhra Pradesh Grameena Vikas Bank',
+  'Uttar Bihar Gramin Bank',
+  'Prathama UP Gramin Bank',
+  'Madhya Pradesh Gramin Bank',
+  'Odisha Gramya Bank',
+  'Chhattisgarh Rajya Gramin Bank',
+  'Himachal Pradesh Gramin Bank',
+  'Jharkhand Rajya Gramin Bank',
+  'Kerala Gramin Bank',
+  'Maharashtra Gramin Bank',
+  'Rajasthan Marudhara Gramin Bank',
+  'Saptagiri Grameena Bank',
+  'Telangana Grameena Bank',
+  'Uttarakhand Gramin Bank',
+  'Bangiya Gramin Vikash Bank',
+  'Assam Gramin Vikash Bank',
+  'Purvanchal Bank',
+  'Paschim Banga Gramin Bank',
+  'Uttar Banga Kshetriya Gramin Bank',
+  'Baroda Gujarat Gramin Bank',
+  'Dena Gujarat Gramin Bank',
+  'Saurashtra Gramin Bank',
+  'Nainital Bank',
+  'Citibank India',
+  'Standard Chartered Bank',
+  'HSBC Bank India',
+  'Other',
+];
+
 import { runValidations, validateRequired, validatePhone, validateSalary } from '../utils/validators';
 
 export default function InternalTeam() {
@@ -25,6 +86,8 @@ export default function InternalTeam() {
     phone: '',
     email: '',
   });
+
+  const [customBankName, setCustomBankName] = useState('');
   
   const [documents, setDocuments] = useState({
     aadhar_photo: null,
@@ -54,13 +117,21 @@ export default function InternalTeam() {
 
   const handleAdd = async (e) => {
     e.preventDefault();
+    
+    // Validate custom bank name if "Other" is selected
+    const finalBankName = form.bank_name === 'Other' ? customBankName.trim() : form.bank_name.trim();
+    if (form.bank_name === 'Other' && !finalBankName) {
+      alert('Please enter the bank name');
+      return;
+    }
+    
     const validations = {
       full_name:   () => validateRequired(form.full_name, 'Full name'),
       designation: () => validateRequired(form.designation, 'Designation'),
       phone:       () => validatePhone(form.phone),
       salary:      () => validateSalary(form.salary),
       bank_holder_name: () => validateRequired(form.bank_holder_name, 'Account holder name'),
-      bank_name: () => validateRequired(form.bank_name, 'Bank name'),
+      bank_name: () => validateRequired(finalBankName, 'Bank name'),
       bank_account_no: () => validateRequired(form.bank_account_no, 'Account number'),
       bank_ifsc: () => validateRequired(form.bank_ifsc, 'IFSC code'),
       aadhar_photo:() => !documents.aadhar_photo ? 'Aadhaar card photo is required' : null,
@@ -81,7 +152,7 @@ export default function InternalTeam() {
         designation: form.designation.trim(),
         salary: parseFloat(form.salary) || 0,
         bank_holder_name: form.bank_holder_name.trim() || null,
-        bank_name: form.bank_name.trim() || null,
+        bank_name: finalBankName || null,
         bank_account_no: form.bank_account_no.trim() || null,
         bank_ifsc: form.bank_ifsc.trim() || null,
         bank_branch: form.bank_branch.trim() || null,
@@ -177,14 +248,6 @@ export default function InternalTeam() {
     <div style={{ fontFamily:"'Inter',-apple-system,sans-serif" }}>
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24, flexWrap:'wrap', gap:12 }}>
-        <div>
-          <div style={{ fontSize:24, fontWeight:800, color:'var(--label)', letterSpacing:'-0.3px', marginBottom:6 }}>
-            🌟 Internal Team
-          </div>
-          <div style={{ fontSize:14, color:'var(--label-4)' }}>
-            Core team members with complete financial details
-          </div>
-        </div>
         <button
           onClick={() => setShowAddForm(true)}
           style={{
@@ -521,8 +584,22 @@ export default function InternalTeam() {
                     </div>
                     <div>
                       <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)',display:'block',marginBottom:4 }}>Bank Name *</label>
-                      <input value={form.bank_name} onChange={e => setForm({...form, bank_name:e.target.value})}
-                        style={{ width:'100%',padding:'10px 12px',border:'1.5px solid #E0E0E0',borderRadius:8,fontSize:13 }} />
+                      <select value={form.bank_name} onChange={e => { setForm({...form, bank_name:e.target.value}); if (e.target.value !== 'Other') setCustomBankName(''); }}
+                        style={{ width:'100%',padding:'10px 12px',border:'1.5px solid #E0E0E0',borderRadius:8,fontSize:13 }}>
+                        <option value="">Select bank</option>
+                        {INDIAN_BANKS.map(bank => (
+                          <option key={bank} value={bank}>{bank}</option>
+                        ))}
+                      </select>
+                      {form.bank_name === 'Other' && (
+                        <input
+                          type="text"
+                          value={customBankName}
+                          onChange={e => setCustomBankName(e.target.value)}
+                          placeholder="Enter bank name"
+                          style={{ width:'100%',padding:'10px 12px',border:'1.5px solid #E0E0E0',borderRadius:8,fontSize:13,marginTop:8 }}
+                        />
+                      )}
                     </div>
                     <div>
                       <label style={{ fontSize:12,fontWeight:600,color:'var(--label-3)',display:'block',marginBottom:4 }}>Account Number *</label>

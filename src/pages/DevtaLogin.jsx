@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../utils/supabase';
 import { saveSession } from '../utils/session';
 import { enterFullscreen, startFullscreenGuard } from '../utils/fullscreen';
+import PasswordInput from '../components/PasswordInput';
 
 // ─────────────────────────────────────────────────────────────
 // Sky canvas — clouds drifting, birds flying
@@ -223,6 +224,7 @@ export default function DevtaLogin({ onClose }) {
     boxShadow: focused ? '0 0 0 3px rgba(2,136,209,0.18)' : 'none',
   });
   const [focusedField, setFocusedField] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <div style={{ position:'fixed', inset:0, zIndex:1000,
@@ -306,15 +308,30 @@ export default function DevtaLogin({ onClose }) {
                 letterSpacing:'0.5px' }}>
                 Password
               </label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
-                style={inputStyle(focusedField === 'password')}
-                onFocus={() => setFocusedField('password')}
-                onBlur={() => setFocusedField('')}
-              />
+              <div style={{ position:'relative' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  style={{ ...inputStyle(focusedField === 'password'), paddingRight:'45px' }}
+                  onFocus={() => setFocusedField('password')}
+                  onBlur={() => setFocusedField('')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position:'absolute', right:13, top:'50%', transform:'translateY(-50%)',
+                    background:'none', border:'none', cursor:'pointer', fontSize:16,
+                    padding:4, opacity:0.6, transition:'opacity 0.2s',
+                  }}
+                  onMouseEnter={(e) => e.target.style.opacity = '1'}
+                  onMouseLeave={(e) => e.target.style.opacity = '0.6'}
+                >
+                  {showPassword ? '🙈' : '👁️'}
+                </button>
+              </div>
             </div>
 
             <AnimatePresence>

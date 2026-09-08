@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { saveSession } from '../utils/session';
 import { useNavigate } from 'react-router-dom';
 import { enterFullscreen, startFullscreenGuard } from '../utils/fullscreen';
+import PasswordInput from '../components/PasswordInput';
 
 // ── Shooting stars canvas ─────────────────────────────────────────────────────
 function SpaceCanvas() {
@@ -171,6 +172,7 @@ export default function VishnuLogin({ onClose }) {
   const [loginErr, setLoginErr]= useState('');
   const [loading,  setLoading] = useState(false);
   const [shake,    setShake]   = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleCode = (code) => {
     if (code === SECRET_CODE) {
@@ -270,11 +272,26 @@ export default function VishnuLogin({ onClose }) {
                 </div>
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 6 }}>Password</label>
-                  <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    style={{ width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.08)', border: '1.5px solid rgba(255,255,255,0.15)', borderRadius: 12, fontSize: 14, color: '#fff', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
-                    onFocus={e => e.target.style.borderColor = 'rgba(180,130,255,0.8)'}
-                    onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.15)'} />
+                  <div style={{ position: 'relative' }}>
+                    <input type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      style={{ width: '100%', padding: '12px 45px 12px 14px', background: 'rgba(255,255,255,0.08)', border: '1.5px solid rgba(255,255,255,0.15)', borderRadius: 12, fontSize: 14, color: '#fff', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+                      onFocus={e => e.target.style.borderColor = 'rgba(180,130,255,0.8)'}
+                      onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.15)'} />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{
+                        position: 'absolute', right: 13, top: '50%', transform: 'translateY(-50%)',
+                        background: 'none', border: 'none', cursor: 'pointer', fontSize: 16,
+                        padding: 4, opacity: 0.6, transition: 'opacity 0.2s',
+                      }}
+                      onMouseEnter={(e) => e.target.style.opacity = '1'}
+                      onMouseLeave={(e) => e.target.style.opacity = '0.6'}
+                    >
+                      {showPassword ? '🙈' : '👁️'}
+                    </button>
+                  </div>
                 </div>
                 {loginErr && <div style={{ fontSize: 12, color: '#ff6b6b', fontWeight: 600, textAlign: 'center' }}>⛔ {loginErr}</div>}
                 <motion.button type="submit" disabled={loading} whileTap={{ scale: 0.97 }}
