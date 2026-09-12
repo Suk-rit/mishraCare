@@ -159,7 +159,7 @@ function CodeInput({ onComplete }) {
 }
 
 // ── Main Vishnu Login page ─────────────────────────────────────────────────────
-const SECRET_CODE = '232830';
+const SECRET_CODE = '202200';
 const VISHNU_EMAIL = 'ilovepahad@moutain.com';
 const VISHNU_PASS  = 'pahadibabu@321';
 
