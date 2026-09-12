@@ -146,24 +146,6 @@ export default function AdminDashboard() {
                     </motion.div>
                   ))}
                 </div>
-
-                {/* Quick actions */}
-                <div style={{ background: 'var(--bg-2)', border: '1px solid var(--bg-4)', borderRadius: 'var(--radius-lg)', padding: '20px 24px', boxShadow: 'var(--shadow-sm)' }}>
-                  <div style={{ fontSize: 11, color: 'var(--label-4)', textTransform: 'uppercase', letterSpacing: '0.8px', fontWeight: 700, marginBottom: 14 }}>Quick Actions</div>
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    {[
-                      { label: '🏪  Add Store',   action: () => setActive('stores')     },
-                      { label: '📥  Add Stock',   action: () => setActive('add-stock')  },
-                      { label: '🗄️  Inventory',   action: () => setActive('inventory')  },
-                      { label: '📋  Requests',    action: () => setActive('requests')   },
-                    ].map((a, i) => (
-                      <button key={i} onClick={a.action}
-                        style={{ background: 'var(--bg-3)', border: '1px solid var(--bg-4)', color: 'var(--label-2)', padding: '9px 18px', borderRadius: 10, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, boxShadow: 'var(--shadow-sm)' }}>
-                        {a.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </motion.div>
             )}
 

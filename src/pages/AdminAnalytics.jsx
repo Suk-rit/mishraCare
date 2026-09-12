@@ -1,14 +1,13 @@
 /**
  * AdminAnalytics — EXPENSES ONLY view for admin
- * Shows: store expenses + admin region expenses (salary, travel, etc.)
- * Does NOT show revenue, profit or sales data — those are Vishnu-only.
+ * Shows: admin region expenses (warehouse, travel, etc.)
+ * Does NOT show store expenses, revenue, profit or sales data — those are Vishnu-only.
  */
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../utils/supabase';
 import { getDateRange } from '../utils/analytics';
 import RefreshButton from '../components/RefreshButton';
-import ExpenseForm from '../components/ExpenseForm';
 import AdminExpenseForm from '../components/AdminExpenseForm';
 import { getSession } from '../utils/session';
 
@@ -34,13 +33,9 @@ export default function AdminAnalytics({ adminId: adminIdProp }) {
   const session = getSession();
 
   const [period,         setPeriod]         = useState('month');
-  const [stores,         setStores]         = useState([]);
-  const [storeExpenses,  setStoreExpenses]  = useState([]);
   const [adminExpenses,  setAdminExpenses]  = useState([]);
   const [loading,        setLoading]        = useState(true);
-  const [showStoreExp,   setShowStoreExp]   = useState(false);
   const [showAdminExp,   setShowAdminExp]   = useState(false);
-  const [selectedStore,  setSelectedStore]  = useState(null);
   const [resolvedAdminId, setResolvedAdminId] = useState(adminIdProp || null);
 
   // Resolve adminId from session email if not passed as prop
@@ -52,19 +47,9 @@ export default function AdminAnalytics({ adminId: adminIdProp }) {
       .then(({ data }) => { if (data?.id) setResolvedAdminId(data.id); });
   }, []);
 
-  useEffect(() => { if (resolvedAdminId) loadStores(); }, [resolvedAdminId]);
   useEffect(() => { if (resolvedAdminId) loadData(); }, [period, resolvedAdminId]);
 
   const adminId = resolvedAdminId;
-
-  const loadStores = async () => {
-    const { data } = await supabase
-      .from('stores')
-      .select('id, store_name, city, state')
-      .eq('admin_id', adminId)
-      .eq('is_active', true);
-    setStores(data || []);
-  };
 
   const loadData = async () => {
     setLoading(true);
@@ -72,50 +57,26 @@ export default function AdminAnalytics({ adminId: adminIdProp }) {
     const dateStr = start.split('T')[0];
     const endStr  = end.split('T')[0];
 
-    const [{ data: stExp }, { data: adExp }] = await Promise.all([
-      // Store-level expenses (from existing expenses table)
-      supabase.from('expenses')
-        .select('*, stores(store_name, city)')
-        .gte('expense_date', dateStr)
-        .lte('expense_date', endStr)
-        .order('expense_date', { ascending: false }),
-      // Admin-level expenses (warehouse, travel etc.) — NO salary
-      supabase.from('admin_expenses')
-        .select('*')
-        .eq('admin_id', adminId)
-        .not('category', 'eq', 'staff_salary')
-        .not('category', 'eq', 'salary')
-        .gte('expense_date', dateStr)
-        .lte('expense_date', endStr)
-        .order('expense_date', { ascending: false }),
-    ]);
+    const { data: adExp } = await supabase.from('admin_expenses')
+      .select('*')
+      .eq('admin_id', adminId)
+      .not('category', 'eq', 'staff_salary')
+      .not('category', 'eq', 'salary')
+      .gte('expense_date', dateStr)
+      .lte('expense_date', endStr)
+      .order('expense_date', { ascending: false });
 
-    setStoreExpenses(stExp || []);
     setAdminExpenses(adExp || []);
     setLoading(false);
   };
 
-  const totalStoreExp  = storeExpenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
   const totalAdminExp  = adminExpenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-  const grandTotalExp  = totalStoreExp + totalAdminExp;
-
-  // Breakdown by category (store expenses)
-  const storeByCategory = storeExpenses.reduce((m, e) => {
-    m[e.category] = (m[e.category] || 0) + parseFloat(e.amount || 0);
-    return m;
-  }, {});
 
   // Breakdown by category (admin expenses)
   const adminByCategory = adminExpenses.reduce((m, e) => {
     m[e.category] = (m[e.category] || 0) + parseFloat(e.amount || 0);
     return m;
   }, {});
-
-  // Expense by store
-  const byStore = stores.map(s => ({
-    ...s,
-    total: storeExpenses.filter(e => e.store_id === s.id).reduce((sum, e) => sum + parseFloat(e.amount || 0), 0),
-  })).filter(s => s.total > 0).sort((a, b) => b.total - a.total);
 
   return (
     <div style={{ padding:'24px 28px', maxWidth:1100, margin:'0 auto',
@@ -126,25 +87,19 @@ export default function AdminAnalytics({ adminId: adminIdProp }) {
         marginBottom:20, flexWrap:'wrap', gap:12 }}>
         <div>
           <div style={{ fontSize:22, fontWeight:700, color:'var(--label)', letterSpacing:'-0.3px' }}>
-            💸 Expenses
+            💸 My Expenses
           </div>
           <div style={{ fontSize:13, color:'var(--label-4)', marginTop:2 }}>
-            Store operating costs + your warehouse/admin expenses
+            Your warehouse and admin expenses
           </div>
         </div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
           <RefreshButton onRefresh={loadData} />
           <button onClick={() => setShowAdminExp(true)}
-            style={{ padding:'9px 16px', background:'var(--bg-2)', border:'1px solid var(--bg-4)',
-              color:'var(--label-2)', borderRadius:10, fontSize:13, fontWeight:600,
-              cursor:'pointer', fontFamily:'inherit' }}>
-            💼 My Expense
-          </button>
-          <button onClick={() => setShowStoreExp(true)}
             style={{ padding:'9px 16px', background:'var(--accent-bg)', color:'var(--accent)',
               border:'1px solid rgba(255,59,48,0.2)', borderRadius:10, fontSize:13, fontWeight:600,
               cursor:'pointer', fontFamily:'inherit' }}>
-            🏪 Store Expense
+            + Add Expense
           </button>
         </div>
       </div>
@@ -172,10 +127,9 @@ export default function AdminAnalytics({ adminId: adminIdProp }) {
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',
             gap:12, marginBottom:24 }}>
             {[
-              { label:'Total Expenses',      value:fmt(grandTotalExp),   color:'#FF3B30', bg:'#FFF1F0' },
-              { label:'Store Expenses',       value:fmt(totalStoreExp),   color:'#FF9500', bg:'#FFFBEB' },
-              { label:'Admin / Warehouse',    value:fmt(totalAdminExp),   color:'#007AFF', bg:'#EFF6FF' },
-              { label:'Stores Tracked',       value:byStore.length,       color:'#34C759', bg:'#F0FDF4' },
+              { label:'Total Expenses',      value:fmt(totalAdminExp),   color:'#FF3B30', bg:'#FFF1F0' },
+              { label:'Expense Categories',  value:Object.keys(adminByCategory).length, color:'#007AFF', bg:'#EFF6FF' },
+              { label:'Records',             value:adminExpenses.length, color:'#34C759', bg:'#F0FDF4' },
             ].map((s, i) => (
               <motion.div key={i} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }}
                 transition={{ delay:i*0.05 }}
@@ -194,140 +148,97 @@ export default function AdminAnalytics({ adminId: adminIdProp }) {
             ))}
           </div>
 
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:24 }}>
-
-            {/* Admin expenses breakdown */}
-            <div style={{ background:'var(--bg-2)', border:'1px solid var(--bg-4)',
-              borderRadius:'var(--radius-lg)', padding:'18px 20px', boxShadow:'var(--shadow-sm)' }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-                <div style={{ fontSize:14, fontWeight:700, color:'var(--label)' }}>
-                  💼 My Expenses — {fmt(totalAdminExp)}
+          {/* Admin expenses breakdown */}
+          <div style={{ background:'var(--bg-2)', border:'1px solid var(--bg-4)',
+            borderRadius:'var(--radius-lg)', padding:'18px 20px', boxShadow:'var(--shadow-sm)', marginBottom:24 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+              <div style={{ fontSize:14, fontWeight:700, color:'var(--label)' }}>
+                💼 My Expenses — {fmt(totalAdminExp)}
+              </div>
+            </div>
+            {adminExpenses.length === 0 ? (
+              <div style={{ textAlign:'center', padding:'24px 0', color:'var(--label-4)', fontSize:13 }}>
+                No expenses yet
+                <div style={{ marginTop:8 }}>
+                  <button onClick={() => setShowAdminExp(true)}
+                    style={{ padding:'6px 14px', background:'var(--accent-bg)', color:'var(--accent)',
+                      border:'1px solid rgba(255,59,48,0.2)', borderRadius:8, fontSize:12,
+                      fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
+                    + Add Expense
+                  </button>
                 </div>
               </div>
-              {adminExpenses.length === 0 ? (
-                <div style={{ textAlign:'center', padding:'24px 0', color:'var(--label-4)', fontSize:13 }}>
-                  No admin expenses yet
-                  <div style={{ marginTop:8 }}>
-                    <button onClick={() => setShowAdminExp(true)}
-                      style={{ padding:'6px 14px', background:'var(--accent-bg)', color:'var(--accent)',
-                        border:'1px solid rgba(255,59,48,0.2)', borderRadius:8, fontSize:12,
-                        fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
-                      + Add Expense
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                  {Object.entries(adminByCategory).sort((a,b)=>b[1]-a[1]).map(([cat, amt]) => (
-                    <div key={cat} style={{ display:'flex', alignItems:'center', gap:10 }}>
-                      <span style={{ fontSize:16, flexShrink:0 }}>{CAT_ICONS[cat]||'💰'}</span>
-                      <div style={{ flex:1 }}>
-                        <div style={{ display:'flex', justifyContent:'space-between',
-                          fontSize:12, fontWeight:600, marginBottom:3 }}>
-                          <span style={{ color:'var(--label-2)', textTransform:'capitalize' }}>
-                            {cat.replace(/_/g,' ')}
-                          </span>
-                          <span style={{ color:'#B91C1C', fontWeight:700 }}>{fmt(amt)}</span>
-                        </div>
-                        <div style={{ height:4, background:'var(--bg-4)', borderRadius:2 }}>
-                          <div style={{ height:'100%', borderRadius:2, background:'#FF3B30',
-                            width:`${totalAdminExp > 0 ? (amt/totalAdminExp)*100 : 0}%`,
-                            transition:'width 0.5s' }} />
-                        </div>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {Object.entries(adminByCategory).sort((a,b)=>b[1]-a[1]).map(([cat, amt]) => (
+                  <div key={cat} style={{ display:'flex', alignItems:'center', gap:10 }}>
+                    <span style={{ fontSize:16, flexShrink:0 }}>{CAT_ICONS[cat]||'💰'}</span>
+                    <div style={{ flex:1 }}>
+                      <div style={{ display:'flex', justifyContent:'space-between',
+                        fontSize:12, fontWeight:600, marginBottom:3 }}>
+                        <span style={{ color:'var(--label-2)', textTransform:'capitalize' }}>
+                          {cat.replace(/_/g,' ')}
+                        </span>
+                        <span style={{ color:'#B91C1C', fontWeight:700 }}>{fmt(amt)}</span>
+                      </div>
+                      <div style={{ height:4, background:'var(--bg-4)', borderRadius:2 }}>
+                        <div style={{ height:'100%', borderRadius:2, background:'#FF3B30',
+                          width:`${totalAdminExp > 0 ? (amt/totalAdminExp)*100 : 0}%`,
+                          transition:'width 0.5s' }} />
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Store expense breakdown */}
-            <div style={{ background:'var(--bg-2)', border:'1px solid var(--bg-4)',
-              borderRadius:'var(--radius-lg)', padding:'18px 20px', boxShadow:'var(--shadow-sm)' }}>
-              <div style={{ fontSize:14, fontWeight:700, color:'var(--label)', marginBottom:14 }}>
-                🏪 Expense by Store — {fmt(totalStoreExp)}
+                  </div>
+                ))}
               </div>
-              {byStore.length === 0 ? (
-                <div style={{ textAlign:'center', padding:'24px 0', color:'var(--label-4)', fontSize:13 }}>
-                  No store expenses yet
-                </div>
-              ) : (
-                <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                  {byStore.map((s, i) => {
-                    const pct = byStore[0].total > 0 ? (s.total / byStore[0].total) * 100 : 0;
-                    return (
-                      <div key={s.id}>
-                        <div style={{ display:'flex', justifyContent:'space-between',
-                          fontSize:13, marginBottom:4 }}>
-                          <span style={{ fontWeight:600, color:'var(--label)' }}>
-                            {s.store_name}
-                          </span>
-                          <span style={{ fontWeight:700, color:'#B91C1C' }}>{fmt(s.total)}</span>
-                        </div>
-                        <div style={{ height:4, background:'var(--bg-4)', borderRadius:2 }}>
-                          <div style={{ height:'100%', borderRadius:2, background:'#FF9500',
-                            width:`${pct}%`, transition:'width 0.5s' }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            )}
           </div>
 
           {/* All expenses list */}
-          {[
-            { title:'💼 Admin / Warehouse Expenses', data: adminExpenses, isAdmin: true },
-            { title:'🏪 Store Expenses', data: storeExpenses, isAdmin: false },
-          ].map(({ title, data, isAdmin }) => (
-            <div key={title} style={{ background:'var(--bg-2)', border:'1px solid var(--bg-4)',
-              borderRadius:'var(--radius-lg)', padding:'18px 20px',
-              boxShadow:'var(--shadow-sm)', marginBottom:16 }}>
-              <div style={{ fontSize:14, fontWeight:700, color:'var(--label)', marginBottom:14 }}>
-                {title} ({data.length}) — {fmt(data.reduce((s,e)=>s+parseFloat(e.amount||0),0))}
+          <div style={{ background:'var(--bg-2)', border:'1px solid var(--bg-4)',
+            borderRadius:'var(--radius-lg)', padding:'18px 20px',
+            boxShadow:'var(--shadow-sm)' }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'var(--label)', marginBottom:14 }}>
+              💼 Expense History ({adminExpenses.length}) — {fmt(totalAdminExp)}
+            </div>
+            {adminExpenses.length === 0 ? (
+              <div style={{ textAlign:'center', padding:'20px 0',
+                color:'var(--label-4)', fontSize:13 }}>
+                No records for this period
               </div>
-              {data.length === 0 ? (
-                <div style={{ textAlign:'center', padding:'20px 0',
-                  color:'var(--label-4)', fontSize:13 }}>
-                  No records for this period
-                </div>
-              ) : (
-                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                  {data.map(e => (
-                    <div key={e.id} style={{ display:'flex', alignItems:'center', gap:12,
-                      padding:'10px 14px', background:'var(--bg-3)', borderRadius:10,
-                      border:'1px solid var(--bg-4)' }}>
-                      <span style={{ fontSize:18, flexShrink:0 }}>{CAT_ICONS[e.category]||'💰'}</span>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:13, fontWeight:600, color:'var(--label)',
-                          overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                          {e.description}
-                        </div>
-                        <div style={{ fontSize:11, color:'var(--label-4)', display:'flex', gap:8 }}>
-                          <span>{new Date(e.expense_date).toLocaleDateString('en-IN')}</span>
-                          <span style={{ textTransform:'capitalize' }}>{e.category?.replace(/_/g,' ')}</span>
-                          {!isAdmin && e.stores && <span>· {e.stores.store_name}</span>}
-                          {e.payment_method && <span>· {e.payment_method}</span>}
-                        </div>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {adminExpenses.map(e => (
+                  <div key={e.id} style={{ display:'flex', alignItems:'center', gap:12,
+                    padding:'10px 14px', background:'var(--bg-3)', borderRadius:10,
+                    border:'1px solid var(--bg-4)' }}>
+                    <span style={{ fontSize:18, flexShrink:0 }}>{CAT_ICONS[e.category]||'💰'}</span>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:13, fontWeight:600, color:'var(--label)',
+                        overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                        {e.description}
                       </div>
-                      <div style={{ textAlign:'right', flexShrink:0 }}>
-                        <div style={{ fontSize:14, fontWeight:800, color:'#B91C1C' }}>
-                          {fmt(e.amount)}
-                        </div>
-                        {e.proof_url && (
-                          <a href={e.proof_url} target="_blank" rel="noreferrer"
-                            style={{ fontSize:11, color:'#007AFF', fontWeight:600, textDecoration:'underline' }}>
-                            Proof
-                          </a>
-                        )}
+                      <div style={{ fontSize:11, color:'var(--label-4)', display:'flex', gap:8 }}>
+                        <span>{new Date(e.expense_date).toLocaleDateString('en-IN')}</span>
+                        <span style={{ textTransform:'capitalize' }}>{e.category?.replace(/_/g,' ')}</span>
+                        {e.payment_method && <span>· {e.payment_method}</span>}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+                    <div style={{ textAlign:'right', flexShrink:0 }}>
+                      <div style={{ fontSize:14, fontWeight:800, color:'#B91C1C' }}>
+                        {fmt(e.amount)}
+                      </div>
+                      {e.proof_url && (
+                        <a href={e.proof_url} target="_blank" rel="noreferrer"
+                          style={{ fontSize:11, color:'#007AFF', fontWeight:600, textDecoration:'underline' }}>
+                          Proof
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </>
       )}
 
@@ -337,14 +248,6 @@ export default function AdminAnalytics({ adminId: adminIdProp }) {
             adminId={adminId}
             onClose={() => setShowAdminExp(false)}
             onSuccess={() => { setShowAdminExp(false); loadData(); }}
-          />
-        )}
-        {showStoreExp && (
-          <ExpenseForm
-            adminId={adminId}
-            storeId={selectedStore?.id}
-            onClose={() => setShowStoreExp(false)}
-            onSuccess={() => { setShowStoreExp(false); loadData(); }}
           />
         )}
       </AnimatePresence>

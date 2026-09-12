@@ -30,9 +30,9 @@ export default function VishnuITSupport() {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedTicket, setExpandedTicket] = useState(null);
-  const [respondingTo, setRespondingTo] = useState(null);
-  const [response, setResponse] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [comments, setComments] = useState({}); // { ticketId: [comments] }
+  const [newComment, setNewComment] = useState(''); // For adding new comment
+  const [submittingComment, setSubmittingComment] = useState(false);
 
   useEffect(() => {
     fetchTickets();
@@ -58,31 +58,57 @@ export default function VishnuITSupport() {
     }
   };
 
-  const handleRespond = async (ticketId) => {
-    if (!response.trim()) return;
+  const fetchComments = async (ticketId) => {
+    if (comments[ticketId]) return; // Already fetched
     
-    setSubmitting(true);
     try {
-      const { error } = await supabase
-        .from('it_support_requests')
-        .update({
-          vishnu_response: response.trim(),
-          vishnu_responded_at: new Date().toISOString(),
-          vishnu_responded_by: null, // Vishnu's user ID would go here
-          status: 'in_progress',
-        })
-        .eq('id', ticketId);
+      const { data } = await supabase
+        .from('it_support_comments')
+        .select('*')
+        .eq('ticket_id', ticketId)
+        .order('created_at', { ascending: true });
+      setComments(prev => ({ ...prev, [ticketId]: data || [] }));
+    } catch (err) {
+      console.error('Error fetching comments:', err);
+    }
+  };
+
+  const addComment = async (ticketId) => {
+    if (!newComment.trim()) return;
+    
+    setSubmittingComment(true);
+    try {
+      const { error } = await supabase.from('it_support_comments').insert({
+        ticket_id: ticketId,
+        author_id: '00000000-0000-0000-0000-000000000000', // Placeholder UUID for Vishnu
+        author_name: 'Vishnu',
+        author_role: 'vishnu',
+        comment: newComment.trim(),
+      });
 
       if (error) throw error;
 
-      setResponse('');
-      setRespondingTo(null);
+      setNewComment('');
+      // Refetch comments
+      const { data } = await supabase
+        .from('it_support_comments')
+        .select('*')
+        .eq('ticket_id', ticketId)
+        .order('created_at', { ascending: true });
+      setComments(prev => ({ ...prev, [ticketId]: data || [] }));
+      
+      // Update ticket status if it was closed
+      await supabase
+        .from('it_support_requests')
+        .update({ status: 'open' })
+        .eq('id', ticketId);
+      
       fetchTickets();
     } catch (err) {
-      console.error('Error responding to ticket:', err);
-      alert('Failed to respond. Please try again.');
+      console.error('Error adding comment:', err);
+      alert('Failed to add comment');
     } finally {
-      setSubmitting(false);
+      setSubmittingComment(false);
     }
   };
 
@@ -282,7 +308,12 @@ export default function VishnuITSupport() {
                     cursor: 'pointer',
                     transition: 'background 0.2s',
                   }}
-                  onClick={() => setExpandedTicket(expandedTicket === ticket.id ? null : ticket.id)}
+                  onClick={async () => {
+                    if (expandedTicket !== ticket.id) {
+                      await fetchComments(ticket.id);
+                    }
+                    setExpandedTicket(expandedTicket === ticket.id ? null : ticket.id);
+                  }}
                 >
                   <div
                     style={{
@@ -416,111 +447,130 @@ export default function VishnuITSupport() {
                           </div>
                         )}
 
-                        {/* Existing Response */}
-                        {ticket.vishnu_response && (
-                          <div
-                            style={{
-                              background: '#F0FDF4',
-                              border: '1px solid #BBF7D0',
-                              borderRadius: 16,
-                              padding: '20px 24px',
-                              marginBottom: 24,
-                            }}
-                          >
-                            <div style={{ fontSize: 13, fontWeight: 700, color: '#15803D', marginBottom: 10 }}>
-                              🛠️ Your Response
-                            </div>
-                            <div style={{ fontSize: 14, color: '#166534', lineHeight: 1.7 }}>
-                              {ticket.vishnu_response}
-                            </div>
-                            {ticket.vishnu_responded_at && (
-                              <div style={{ fontSize: 12, color: '#15803D', marginTop: 12 }}>
-                                Responded on {formatDate(ticket.vishnu_responded_at)}
+                        {/* Comments Section */}
+                        <div style={{ marginTop: 20 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--label-4)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                            Conversation
+                          </div>
+                          
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16, maxHeight: 300, overflowY: 'auto' }}>
+                            {comments[ticket.id]?.length > 0 ? (
+                              comments[ticket.id].map((comment) => (
+                                <div
+                                  key={comment.id}
+                                  style={{
+                                    display: 'flex',
+                                    gap: 12,
+                                    alignItems: 'flex-start',
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      width: 36,
+                                      height: 36,
+                                      borderRadius: 10,
+                                      background: comment.author_role === 'vishnu' || comment.author_role === 'admin_team' 
+                                        ? 'linear-gradient(135deg,#7c3aed,#4f46e5)' 
+                                        : 'linear-gradient(135deg,#34C759,#28A745)',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: 16,
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    {comment.author_role === 'vishnu' || comment.author_role === 'admin_team' ? '🛠️' : '👤'}
+                                  </div>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--label)' }}>
+                                        {comment.author_name}
+                                      </span>
+                                      <span style={{ fontSize: 11, color: 'var(--label-4)' }}>
+                                        {formatDate(comment.created_at)}
+                                      </span>
+                                      <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 12, background: 'var(--bg-3)', color: 'var(--label-4)' }}>
+                                        {comment.author_role}
+                                      </span>
+                                    </div>
+                                    <div style={{ fontSize: 13, color: 'var(--label-2)', lineHeight: 1.5, background: 'var(--bg-3)', padding: '10px 14px', borderRadius: 12 }}>
+                                      {comment.comment}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div style={{ fontSize: 13, color: 'var(--label-4)', textAlign: 'center', padding: 20 }}>
+                                No comments yet. Start the conversation!
                               </div>
                             )}
                           </div>
-                        )}
 
-                        {/* Response Form */}
-                        {(ticket.status === 'open' || ticket.status === 'in_progress') && (
-                          <div style={{ marginBottom: 24 }}>
-                            {respondingTo === ticket.id ? (
-                              <div>
-                                <textarea
-                                  value={response}
-                                  onChange={(e) => setResponse(e.target.value)}
-                                  placeholder="Type your response..."
-                                  rows={4}
-                                  style={{
-                                    width: '100%',
-                                    padding: '16px 20px',
-                                    fontSize: 14,
-                                    border: '2px solid #7c3aed',
-                                    borderRadius: 12,
-                                    background: 'var(--bg-3)',
-                                    color: 'var(--label)',
-                                    fontFamily: 'inherit',
-                                    resize: 'vertical',
-                                    marginBottom: 12,
-                                  }}
-                                />
-                                <div style={{ display: 'flex', gap: 12 }}>
-                                  <button
-                                    onClick={() => handleRespond(ticket.id)}
-                                    disabled={submitting}
-                                    style={{
-                                      padding: '12px 24px',
-                                      background: 'linear-gradient(135deg,#7c3aed,#4f46e5)',
-                                      color: '#fff',
-                                      border: 'none',
-                                      borderRadius: 10,
-                                      fontSize: 14,
-                                      fontWeight: 700,
-                                      cursor: submitting ? 'not-allowed' : 'pointer',
-                                      fontFamily: 'inherit',
-                                      opacity: submitting ? 0.7 : 1,
-                                    }}
-                                  >
-                                    {submitting ? '⏳ Sending...' : '🚀 Send Response'}
-                                  </button>
-                                  <button
-                                    onClick={() => { setRespondingTo(null); setResponse(''); }}
-                                    style={{
-                                      padding: '12px 24px',
-                                      background: 'var(--bg-3)',
-                                      color: 'var(--label-2)',
-                                      border: '1px solid var(--bg-4)',
-                                      borderRadius: 10,
-                                      fontSize: 14,
-                                      fontWeight: 600,
-                                      cursor: 'pointer',
-                                      fontFamily: 'inherit',
-                                    }}
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => setRespondingTo(ticket.id)}
+                          {/* Add Comment Input */}
+                          {(ticket.status === 'open' || ticket.status === 'in_progress') ? (
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                            <div
+                              style={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: 10,
+                                background: 'linear-gradient(135deg,#7c3aed,#4f46e5)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 16,
+                                flexShrink: 0,
+                              }}
+                            >
+                              🛠️
+                            </div>
+                            <div style={{ flex: 1, display: 'flex', gap: 8 }}>
+                              <input
+                                type="text"
+                                value={newComment}
+                                onChange={(e) => setNewComment(e.target.value)}
+                                placeholder="Type your response..."
+                                onKeyPress={(e) => e.key === 'Enter' && addComment(ticket.id)}
                                 style={{
-                                  padding: '12px 24px',
+                                  flex: 1,
+                                  padding: '10px 14px',
+                                  fontSize: 13,
+                                  border: '1.5px solid var(--bg-4)',
+                                  borderRadius: 12,
                                   background: 'var(--bg-3)',
-                                  color: 'var(--label-2)',
-                                  border: '1px solid var(--bg-4)',
-                                  borderRadius: 10,
-                                  fontSize: 14,
-                                  fontWeight: 600,
-                                  cursor: 'pointer',
+                                  color: 'var(--label)',
                                   fontFamily: 'inherit',
+                                  outline: 'none',
+                                }}
+                                onFocus={(e) => e.target.style.borderColor = '#7c3aed'}
+                                onBlur={(e) => e.target.style.borderColor = 'var(--bg-4)'}
+                              />
+                              <button
+                                onClick={() => addComment(ticket.id)}
+                                disabled={submittingComment || !newComment.trim()}
+                                style={{
+                                  padding: '10px 16px',
+                                  background: submittingComment || !newComment.trim() ? '#ccc' : 'linear-gradient(135deg,#7c3aed,#4f46e5)',
+                                  color: '#fff',
+                                  border: 'none',
+                                  borderRadius: 12,
+                                  fontSize: 13,
+                                  fontWeight: 700,
+                                  cursor: submittingComment || !newComment.trim() ? 'not-allowed' : 'pointer',
+                                  fontFamily: 'inherit',
+                                  whiteSpace: 'nowrap',
                                 }}
                               >
-                                💬 Add Response
+                                {submittingComment ? '⏳' : 'Send'}
                               </button>
-                            )}
+                            </div>
                           </div>
-                        )}
+                          ) : (
+                            <div style={{ fontSize: 13, color: 'var(--label-4)', textAlign: 'center', padding: 16, background: 'var(--bg-3)', borderRadius: 12 }}>
+                              This ticket is {ticket.status === 'resolved' ? 'resolved' : 'closed'}. No new comments can be added.
+                            </div>
+                          )}
+                        </div>
 
                         {/* Actions */}
                         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', paddingTop: 20, borderTop: '1px solid var(--bg-4)' }}>

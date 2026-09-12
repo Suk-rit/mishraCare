@@ -34,6 +34,9 @@ export default function ITSupport({ userRole, userId, userName, userEmail }) {
   const [submitting, setSubmitting] = useState(false);
   const [expandedTicket, setExpandedTicket] = useState(null);
   const [error, setError] = useState('');
+  const [comments, setComments] = useState({}); // { ticketId: [comments] }
+  const [newComment, setNewComment] = useState(''); // For adding new comment
+  const [submittingComment, setSubmittingComment] = useState(false);
 
   const [form, setForm] = useState({
     subject: '',
@@ -64,6 +67,60 @@ export default function ITSupport({ userRole, userId, userName, userEmail }) {
       console.error('Error fetching tickets:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchComments = async (ticketId) => {
+    if (comments[ticketId]) return; // Already fetched
+    
+    try {
+      const { data } = await supabase
+        .from('it_support_comments')
+        .select('*')
+        .eq('ticket_id', ticketId)
+        .order('created_at', { ascending: true });
+      setComments(prev => ({ ...prev, [ticketId]: data || [] }));
+    } catch (err) {
+      console.error('Error fetching comments:', err);
+    }
+  };
+
+  const addComment = async (ticketId) => {
+    if (!newComment.trim()) return;
+    
+    setSubmittingComment(true);
+    try {
+      const { error } = await supabase.from('it_support_comments').insert({
+        ticket_id: ticketId,
+        author_id: userId,
+        author_name: userName,
+        author_role: userRole,
+        comment: newComment.trim(),
+      });
+
+      if (error) throw error;
+
+      setNewComment('');
+      // Refetch comments
+      const { data } = await supabase
+        .from('it_support_comments')
+        .select('*')
+        .eq('ticket_id', ticketId)
+        .order('created_at', { ascending: true });
+      setComments(prev => ({ ...prev, [ticketId]: data || [] }));
+      
+      // Update ticket status if it was closed
+      await supabase
+        .from('it_support_requests')
+        .update({ status: 'open' })
+        .eq('id', ticketId);
+      
+      fetchTickets();
+    } catch (err) {
+      console.error('Error adding comment:', err);
+      setError('Failed to add comment');
+    } finally {
+      setSubmittingComment(false);
     }
   };
 
@@ -490,7 +547,12 @@ export default function ITSupport({ userRole, userId, userName, userEmail }) {
                     cursor: 'pointer',
                     transition: 'background 0.2s',
                   }}
-                  onClick={() => setExpandedTicket(expandedTicket === ticket.id ? null : ticket.id)}
+                  onClick={async () => {
+                    if (expandedTicket !== ticket.id) {
+                      await fetchComments(ticket.id);
+                    }
+                    setExpandedTicket(expandedTicket === ticket.id ? null : ticket.id);
+                  }}
                 >
                   <div
                     style={{
@@ -591,31 +653,132 @@ export default function ITSupport({ userRole, userId, userName, userEmail }) {
                           </div>
                         )}
 
-                        {ticket.vishnu_response && (
-                          <div
-                            style={{
-                              background: '#F0FDF4',
-                              border: '1px solid #BBF7D0',
-                              borderRadius: 12,
-                              padding: '16px',
-                              marginBottom: 16,
-                            }}
-                          >
-                            <div style={{ fontSize: 12, fontWeight: 700, color: '#15803D', marginBottom: 8 }}>
-                              🛠️ IT Team Response
-                            </div>
-                            <div style={{ fontSize: 13, color: '#166534', lineHeight: 1.6 }}>
-                              {ticket.vishnu_response}
-                            </div>
-                            {ticket.vishnu_responded_at && (
-                              <div style={{ fontSize: 11, color: '#15803D', marginTop: 8 }}>
-                                Responded on {formatDate(ticket.vishnu_responded_at)}
+                        {/* Comments Section */}
+                        <div style={{ marginTop: 20 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--label-4)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                            Conversation
+                          </div>
+                          
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16, maxHeight: 300, overflowY: 'auto' }}>
+                            {comments[ticket.id]?.length > 0 ? (
+                              comments[ticket.id].map((comment) => (
+                                <div
+                                  key={comment.id}
+                                  style={{
+                                    display: 'flex',
+                                    gap: 12,
+                                    alignItems: 'flex-start',
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      width: 36,
+                                      height: 36,
+                                      borderRadius: 10,
+                                      background: comment.author_role === 'vishnu' || comment.author_role === 'admin_team' 
+                                        ? 'linear-gradient(135deg,#7c3aed,#4f46e5)' 
+                                        : 'linear-gradient(135deg,#34C759,#28A745)',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: 16,
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    {comment.author_role === 'vishnu' || comment.author_role === 'admin_team' ? '🛠️' : '👤'}
+                                  </div>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--label)' }}>
+                                        {comment.author_name}
+                                      </span>
+                                      <span style={{ fontSize: 11, color: 'var(--label-4)' }}>
+                                        {formatDate(comment.created_at)}
+                                      </span>
+                                      <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 12, background: 'var(--bg-3)', color: 'var(--label-4)' }}>
+                                        {comment.author_role}
+                                      </span>
+                                    </div>
+                                    <div style={{ fontSize: 13, color: 'var(--label-2)', lineHeight: 1.5, background: 'var(--bg-3)', padding: '10px 14px', borderRadius: 12 }}>
+                                      {comment.comment}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div style={{ fontSize: 13, color: 'var(--label-4)', textAlign: 'center', padding: 20 }}>
+                                No comments yet. Start the conversation!
                               </div>
                             )}
                           </div>
-                        )}
 
-                        <div style={{ fontSize: 11, color: 'var(--label-4)' }}>
+                          {/* Add Comment Input */}
+                          {(ticket.status === 'open' || ticket.status === 'in_progress') ? (
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                            <div
+                              style={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: 10,
+                                background: 'linear-gradient(135deg,#34C759,#28A745)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 16,
+                                flexShrink: 0,
+                              }}
+                            >
+                              👤
+                            </div>
+                            <div style={{ flex: 1, display: 'flex', gap: 8 }}>
+                              <input
+                                type="text"
+                                value={newComment}
+                                onChange={(e) => setNewComment(e.target.value)}
+                                placeholder="Type your message..."
+                                onKeyPress={(e) => e.key === 'Enter' && addComment(ticket.id)}
+                                style={{
+                                  flex: 1,
+                                  padding: '10px 14px',
+                                  fontSize: 13,
+                                  border: '1.5px solid var(--bg-4)',
+                                  borderRadius: 12,
+                                  background: 'var(--bg-3)',
+                                  color: 'var(--label)',
+                                  fontFamily: 'inherit',
+                                  outline: 'none',
+                                }}
+                                onFocus={(e) => e.target.style.borderColor = '#7c3aed'}
+                                onBlur={(e) => e.target.style.borderColor = 'var(--bg-4)'}
+                              />
+                              <button
+                                onClick={() => addComment(ticket.id)}
+                                disabled={submittingComment || !newComment.trim()}
+                                style={{
+                                  padding: '10px 16px',
+                                  background: submittingComment || !newComment.trim() ? '#ccc' : 'linear-gradient(135deg,#7c3aed,#4f46e5)',
+                                  color: '#fff',
+                                  border: 'none',
+                                  borderRadius: 12,
+                                  fontSize: 13,
+                                  fontWeight: 700,
+                                  cursor: submittingComment || !newComment.trim() ? 'not-allowed' : 'pointer',
+                                  fontFamily: 'inherit',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {submittingComment ? '⏳' : 'Send'}
+                              </button>
+                            </div>
+                          </div>
+                          ) : (
+                            <div style={{ fontSize: 13, color: 'var(--label-4)', textAlign: 'center', padding: 16, background: 'var(--bg-3)', borderRadius: 12 }}>
+                              This ticket is {ticket.status === 'resolved' ? 'resolved' : 'closed'}. No new comments can be added.
+                            </div>
+                          )}
+                        </div>
+
+                        <div style={{ fontSize: 11, color: 'var(--label-4)', marginTop: 16 }}>
                           Ticket ID: {ticket.id.slice(0, 8)}
                         </div>
                       </div>

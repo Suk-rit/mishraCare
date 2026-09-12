@@ -193,20 +193,6 @@ export default function StoreManagerDashboard() {
                       </div>
                     </div>
                   )}
-
-                  {/* Quick access modules */}
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--label-4)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 14 }}>Quick Access</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(190px,1fr))', gap: 14 }}>
-                    {MODULES.map((m, i) => (
-                      <motion.div key={i} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
-                        style={{ background: m.bg, border: `1px solid ${m.color}22`, borderRadius: 'var(--radius-md)', padding: '20px 18px', cursor: 'pointer', boxShadow: 'var(--shadow-sm)' }}
-                        whileHover={{ y: -3, boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }} whileTap={{ scale: 0.98 }}>
-                        <div style={{ fontSize: 28, marginBottom: 10 }}>{m.icon}</div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--label)', marginBottom: 3 }}>{m.title}</div>
-                        <div style={{ fontSize: 12, color: 'var(--label-4)' }}>{m.sub}</div>
-                      </motion.div>
-                    ))}
-                  </div>
                 </motion.div>
               )}
 
