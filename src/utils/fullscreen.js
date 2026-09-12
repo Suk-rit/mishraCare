@@ -1,5 +1,5 @@
 /**
- * Fullscreen utility for JanSwasthya
+ * Fullscreen utility for Awasadhi
  *
  * Browser rule: requestFullscreen() MUST be called from a direct user gesture.
  * The fullscreenchange event is NOT a user gesture, so calling requestFullscreen

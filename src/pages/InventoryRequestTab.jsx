@@ -46,21 +46,27 @@ export default function InventoryRequestTab({ storeId, managerId, adminId }) {
   const [newMedNotes, setNewMedNotes] = useState('');
 
   useEffect(() => {
-    if (adminId) fetchAdminBatches();
+    fetchAdminBatches();
     if (storeId) fetchMyRequests();
   }, [adminId, storeId]);
 
   const fetchAdminBatches = async () => {
     setBatLoading(true);
     const today = new Date().toISOString().split('T')[0];
-    const { data } = await supabase
+    let query = supabase
       .from('medicine_batches')
       .select('*, medicines(id, name, strength, type, manufacturer, pack_size, pack_unit)')
       .eq('status', 'approved')
-      .eq('admin_id', adminId)
       .gt('units_remaining', 0)
       .gt('expiry_date', today)
       .order('expiry_date', { ascending: true });
+    
+    // Only filter by admin_id if it's provided
+    if (adminId) {
+      query = query.eq('admin_id', adminId);
+    }
+    
+    const { data } = await query;
     setAdminBatches(data || []);
     setBatLoading(false);
   };

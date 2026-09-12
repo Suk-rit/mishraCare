@@ -281,16 +281,13 @@ export default function Login() {
           }}
         >
           {/* Brand */}
-          <div style={{ textAlign: 'center', marginBottom: 26 }}>
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
             <motion.div
               animate={{ y: [0, -6, 0] }}
               transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
-              style={{ fontSize: 48, marginBottom: 10, lineHeight: 1, display: 'block' }}>
-              🌿
+              style={{ marginBottom: 2, lineHeight: 1, display: 'block' }}>
+              <img src="/logo.png" alt="Awasadhi Logo" style={{ width: 140, height: 140, objectFit: 'contain' }} />
             </motion.div>
-            <div style={{ fontSize: 26, fontWeight: 800, color: '#1B4D1F', letterSpacing: '-0.5px', marginBottom: 2 }}>
-              JanSwasthya
-            </div>
             <div style={{ fontSize: 11, color: '#66BB6A', letterSpacing: '1.8px', textTransform: 'uppercase', fontWeight: 600 }}>
               Pharmacy ERP
             </div>
@@ -322,7 +319,7 @@ export default function Login() {
 
                 <form onSubmit={handleLogin} noValidate>
                   <EarthInput icon="✉️" type="email"
-                    placeholder={role === 'admin' ? 'admin@janswasthya.com' : 'store@janswasthya.com'}
+                    placeholder={role === 'admin' ? 'admin@awasadhi.com' : 'store@awasadhi.com'}
                     value={email} onChange={setEmail} error={fieldErr.email} autoComplete="email" />
                   <EarthInput icon="🔑" type="password"
                     placeholder="Enter your password"

@@ -1,5 +1,5 @@
 /**
- * Shared field validators for JanSwasthya staff forms.
+ * Shared field validators for Awasadhi staff forms.
  * Every exported function returns a string error message or null if valid.
  */
 

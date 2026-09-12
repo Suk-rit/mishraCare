@@ -253,10 +253,10 @@ export default function VishnuLogin({ onClose }) {
             style={{ position: 'relative', zIndex: 5, width: '100%', maxWidth: 380, padding: '0 20px' }}>
             {/* Card */}
             <div style={{ background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 24, padding: '36px 32px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
-              <div style={{ textAlign: 'center', marginBottom: 28 }}>
-                <motion.div style={{ fontSize: 52, marginBottom: 10 }}
+              <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                <motion.div style={{ marginBottom: 2 }}
                   animate={{ rotate: [0, -5, 5, 0] }} transition={{ duration: 4, repeat: Infinity }}>
-                  🕉️
+                  <img src="/logo.png" alt="Awasadhi Logo" style={{ width: 120, height: 120, objectFit: 'contain' }} />
                 </motion.div>
                 <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: '-0.3px' }}>Vishnu Dashboard</div>
                 <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', marginTop: 4 }}>Super Admin Portal</div>
@@ -265,7 +265,7 @@ export default function VishnuLogin({ onClose }) {
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 6 }}>Email</label>
                   <input type="email" value={email} onChange={e => setEmail(e.target.value)} autoFocus
-                    placeholder="vishnu@janswasthya.com"
+                    placeholder="vishnu@awasadhi.com"
                     style={{ width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.08)', border: '1.5px solid rgba(255,255,255,0.15)', borderRadius: 12, fontSize: 14, color: '#fff', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
                     onFocus={e => e.target.style.borderColor = 'rgba(180,130,255,0.8)'}
                     onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.15)'} />

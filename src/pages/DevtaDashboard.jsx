@@ -147,8 +147,18 @@ function AdminBatchGroup({ admin, batches, onApprove, onReject }) {
   const [selected,    setSelected]    = useState(new Set(batches.map(b => b.id)));
   const [note,        setNote]        = useState('');
   const [rejNotes,    setRejNotes]    = useState({});    // { batchId: reason }
+  const [discountEdits, setDiscountEdits] = useState({}); // { batchId: editedDiscount }
   const [expanded,    setExpanded]    = useState(false);
   const [submitting,  setSubmitting]  = useState(false);
+
+  // Initialize discount edits with original values
+  useEffect(() => {
+    const initialDiscounts = {};
+    batches.forEach(b => {
+      initialDiscounts[b.id] = b.discount_percent || 0;
+    });
+    setDiscountEdits(initialDiscounts);
+  }, [batches]);
 
   const toggleBatch = (id) => setSelected(prev => {
     const next = new Set(prev);
@@ -169,9 +179,14 @@ function AdminBatchGroup({ admin, batches, onApprove, onReject }) {
     if (!selectedBatches.length) return;
     setSubmitting(true);
     try {
+      // Attach edited discounts to batches
+      const batchesWithDiscounts = selectedBatches.map(b => ({
+        ...b,
+        discount_percent: discountEdits[b.id] || 0
+      }));
       await onApprove({
         admin,
-        batches: selectedBatches,
+        batches: batchesWithDiscounts,
         note,
         billAmount,
         supplierName:    batches[0]?.supplier_name,
@@ -329,6 +344,28 @@ function AdminBatchGroup({ admin, batches, onApprove, onReject }) {
                             <span style={{ fontWeight:600, color:'#0288D1' }}>
                               Total: ₹{batchCost.toFixed(2)}
                             </span>
+                          </div>
+                          {/* Discount editing */}
+                          <div style={{ marginTop:6, display:'flex', alignItems:'center', gap:8 }}>
+                            <span style={{ fontSize:11, color:'#666', fontWeight:600 }}>Discount:</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.5"
+                              value={discountEdits[batch.id] || 0}
+                              onChange={e => setDiscountEdits(prev => ({ ...prev, [batch.id]: parseFloat(e.target.value) || 0 }))}
+                              onClick={e => e.stopPropagation()}
+                              style={{ width:'60px', padding:'4px 8px', fontSize:11,
+                                border:'1px solid #B3E5FC', borderRadius:6, background:'#F5FBFF',
+                                color:'#01579B', fontFamily:'inherit', outline:'none' }}
+                            />
+                            <span style={{ fontSize:11, color:'#666' }}>%</span>
+                            {(discountEdits[batch.id] || 0) !== (batch.discount_percent || 0) && (
+                              <span style={{ fontSize:10, color:'#FF9500', fontWeight:600 }}>
+                                (was {batch.discount_percent || 0}%)
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -549,15 +586,18 @@ export default function DevtaDashboard() {
 
       if (billErr) throw new Error(billErr.message);
 
-      // 2. Update each batch → status=approved
-      await supabase.from('medicine_batches')
-        .update({
-          status:          'approved',
-          approved_bill_id: bill.id,
-          approved_by:     devtaId || null,
-          approved_at:     new Date().toISOString(),
-        })
-        .in('id', batchIds);
+      // 2. Update each batch → status=approved with edited discounts
+      for (const batch of batches) {
+        await supabase.from('medicine_batches')
+          .update({
+            status:          'approved',
+            approved_bill_id: bill.id,
+            approved_by:     devtaId || null,
+            approved_at:     new Date().toISOString(),
+            discount_percent: batch.discount_percent || 0,
+          })
+          .eq('id', batch.id);
+      }
 
       // 3. Generate PDF HTML + upload to storage
       const { blob } = generatePurchaseOrderPDF({
@@ -1643,7 +1683,7 @@ export default function DevtaDashboard() {
                 </div>
                 <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
                   {[
-                    { k:'email',       label:'Email Address *', ph:'admin@janswasthya.com', type:'email'    },
+                    { k:'email',       label:'Email Address *', ph:'admin@awasadhi.com', type:'email'    },
                     { k:'password',    label:'Password *',      ph:'Strong password',      type:'password' },
                   ].map(f => (
                     <div key={f.k} style={{ display:'flex',flexDirection:'column',gap:5 }}>

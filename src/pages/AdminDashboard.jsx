@@ -16,6 +16,7 @@ import { runValidations, validateRequired, validatePhone, validateAadhar, valida
 import FileUpload from '../components/FileUpload';
 import RefreshButton from '../components/RefreshButton';
 import ITSupport from '../components/ITSupport';
+import AdminStoreInventory from './AdminStoreInventory';
 import '../styles/login.css';
 import '../styles/stores.css';
 
@@ -24,6 +25,7 @@ const NAV = [
   { id: 'stores',    icon: '🏪', label: 'Stores'     },
   { id: 'inventory', icon: '🗄️',  label: 'Inventory'  },
   { id: 'add-stock', icon: '📥', label: 'Add Stock'  },
+  { id: 'store-inventory', icon: '📦', label: 'Store Inventory' },
   { id: 'analytics', icon: '📈', label: 'Analytics'  },
   { id: 'issues',    icon: '⚠️',  label: 'Issues'     },
   { id: 'requests',  icon: '📋', label: 'Store Requests' },
@@ -101,7 +103,7 @@ export default function AdminDashboard() {
       navItems={NAV}
       active={active}
       onNav={(id) => { setActive(id); setSelectedStore(null); }}
-      title="JanSwasthya"
+      title="Awasadhi"
       userName={session.name || session.email}
       onLogout={handleLogout}
       headerRight={
@@ -128,7 +130,7 @@ export default function AdminDashboard() {
                   <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--label)', letterSpacing: '-0.4px', marginBottom: 4 }}>
                     Good day, <span style={{ color: 'var(--accent)' }}>{session.name || 'Admin'}</span> 👋
                   </div>
-                  <div style={{ fontSize: 14, color: 'var(--label-4)' }}>Here's your JanSwasthya ERP overview.</div>
+                  <div style={{ fontSize: 14, color: 'var(--label-4)' }}>Here's your Awasadhi ERP overview.</div>
                 </div>
 
                 {/* Live stat cards */}
@@ -193,6 +195,13 @@ export default function AdminDashboard() {
               </motion.div>
             )}
 
+            {/* Store Inventory */}
+            {active === 'store-inventory' && (
+              <motion.div key="store-inventory" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                <AdminStoreInventory adminId={adminId} adminEmail={session?.email} />
+              </motion.div>
+            )}
+
             {/* Analytics */}
             {active === 'analytics' && (
               <motion.div key="analytics" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
@@ -235,7 +244,7 @@ export default function AdminDashboard() {
             )}
 
             {/* Coming soon */}
-            {!['dashboard', 'stores', 'store-detail', 'inventory', 'add-stock', 'analytics', 'issues', 'requests', 'staff', 'it-support'].includes(active) && (
+            {!['dashboard', 'stores', 'store-detail', 'inventory', 'add-stock', 'analytics', 'issues', 'requests', 'staff', 'it-support', 'store-inventory'].includes(active) && (
               <motion.div key={active} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                 style={{ padding: '80px 28px', textAlign: 'center' }}>
                 <div style={{ fontSize: 52, marginBottom: 14, opacity: 0.3 }}>{NAV.find(n => n.id === active)?.icon}</div>

@@ -9,24 +9,10 @@ import { getSession } from '../utils/session';
 import AddMedicineModal from '../components/AddMedicineModal';
 import { CartRow, emptyBatchRow, validateBatchRow } from '../components/AddBatchModal';
 import BillSubmitModal  from '../components/BillSubmitModal';
-import CreateTransferModal from '../components/CreateTransferModal';
 import MedicineSearchInput from '../components/MedicineSearchInput';
-import { TransferIssuePanel } from '../components/AdminTransferReview';
 import RefreshButton from '../components/RefreshButton';
 import '../styles/products.css';
 import '../styles/stores.css';
-
-function TransferIssueInline({ transfer, onResolved }) {
-  const [items, setItems] = useState(null);
-  useEffect(() => {
-    supabase.from('stock_transfer_items')
-      .select('*, medicines(name, strength, type, pack_size, pack_unit)')
-      .eq('transfer_id', transfer.id)
-      .then(({ data }) => setItems(data || []));
-  }, [transfer.id]);
-  if (!items) return <div style={{ padding: '10px 16px', color: 'var(--label-4)', fontSize: 12 }}>Loading…</div>;
-  return <TransferIssuePanel transfer={transfer} transferItems={items} onResolved={onResolved} />;
-}
 
 export default function AddStock() {
   const session = getSession();
@@ -36,9 +22,6 @@ export default function AddStock() {
   const [cartErrors,      setCartErrors]      = useState({});
   const [showBillSubmit,  setShowBillSubmit]  = useState(false);
   const [showAddMed,      setShowAddMed]      = useState(false);
-  const [showTransfer,    setShowTransfer]    = useState(false);
-  const [transfers,       setTransfers]       = useState([]);
-  const [showTransferLog, setShowTransferLog] = useState(false);
   const [banner,          setBanner]          = useState(null);
 
   // ── Approved bills for this admin ─────────────────────────────────────────
@@ -54,7 +37,6 @@ export default function AddStock() {
           if (data?.id) fetchApprovedBills(data.id);
         });
     }
-    fetchTransfers();
   }, []);
 
   const fetchApprovedBills = async (adminId) => {
@@ -69,14 +51,6 @@ export default function AddStock() {
     setBillsLoading(false);
   };
 
-  const fetchTransfers = async () => {
-    const { data } = await supabase
-      .from('stock_transfers')
-      .select('*, stores(store_name, city)')
-      .order('dispatched_at', { ascending: false })
-      .limit(20);
-    setTransfers(data || []);
-  };
 
   // ── Banner helper ─────────────────────────────────────────────────────────
   const showBannerMsg = (msg) => {
@@ -131,7 +105,6 @@ export default function AddStock() {
     setShowBillSubmit(false);
     setCart([]);
     setCartErrors({});
-    fetchTransfers();
     if (adminRecord?.id) fetchApprovedBills(adminRecord.id);
     showBannerMsg('📦 Stock request submitted! Batches are pending approval.');
   };
@@ -141,7 +114,6 @@ export default function AddStock() {
     return sum + (parseInt(row.quantity_packs, 10) || 0) * ps + (parseInt(row.quantity_loose, 10) || 0);
   }, 0);
 
-  const dispatchedCount = transfers.filter(t => t.status === 'dispatched').length;
 
   const isWarning = banner?.startsWith('⚠️');
 
@@ -179,87 +151,10 @@ export default function AddStock() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <RefreshButton onRefresh={fetchTransfers} />
-          <button onClick={() => setShowTransfer(true)}
-            style={{ background: 'linear-gradient(145deg,#34C759,#28A745)', color: '#fff',
-              border: 'none', borderRadius: 12, padding: '10px 20px', fontSize: 13,
-              fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-              boxShadow: '0 3px 12px rgba(52,199,89,0.3)' }}>
-            🚚 Transfer Stock
-          </button>
-          <button onClick={() => setShowTransferLog(v => !v)}
-            style={{ background: 'var(--bg-2)', color: 'var(--label-2)',
-              border: '1px solid var(--bg-4)', borderRadius: 12, padding: '10px 18px',
-              fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            📋 Transfers
-            {dispatchedCount > 0 && (
-              <span style={{ background: 'var(--accent)', color: '#fff', borderRadius: 20,
-                padding: '1px 7px', fontSize: 11, fontWeight: 700, marginLeft: 6 }}>
-                {dispatchedCount}
-              </span>
-            )}
-          </button>
+          <RefreshButton onRefresh={() => { if (adminRecord?.id) fetchApprovedBills(adminRecord.id); }} />
         </div>
       </div>
 
-      {/* Transfer log */}
-      <AnimatePresence>
-        {showTransferLog && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden', marginBottom: 24 }}>
-            <div style={{ background: 'var(--bg-2)', border: '1px solid var(--bg-4)',
-              borderRadius: 'var(--radius-lg)', padding: '16px 20px', boxShadow: 'var(--shadow-sm)' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--label-4)',
-                textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 12 }}>
-                Recent Transfers
-              </div>
-              {transfers.length === 0 ? (
-                <div style={{ color: 'var(--label-4)', fontSize: 13, textAlign: 'center', padding: 16 }}>
-                  No transfers yet
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {transfers.map(t => {
-                    const SC = {
-                      dispatched:         { bg: '#EFF6FF', color: '#1D4ED8' },
-                      received:           { bg: '#DCFCE7', color: '#15803D' },
-                      issue_reported:     { bg: '#FEE2E2', color: '#B91C1C' },
-                      partially_received: { bg: '#FEF3C7', color: '#92400E' },
-                      cancelled:          { bg: 'var(--bg-4)', color: 'var(--label-4)' },
-                    };
-                    const sc = SC[t.status] || SC.dispatched;
-                    const hasIssue = t.status === 'issue_reported';
-                    return (
-                      <div key={t.id} style={{ background: 'var(--bg-3)', borderRadius: 'var(--radius-md)',
-                        border: `1px solid ${hasIssue ? '#FECACA' : 'var(--bg-4)'}`, overflow: 'hidden' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px' }}>
-                          <span style={{ fontSize: 18 }}>🚚</span>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--label)' }}>
-                              {t.stores?.store_name}
-                            </div>
-                            <div style={{ fontSize: 11, color: 'var(--label-4)' }}>
-                              {new Date(t.dispatched_at).toLocaleString('en-IN')}
-                            </div>
-                          </div>
-                          <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px',
-                            borderRadius: 20, background: sc.bg, color: sc.color,
-                            textTransform: 'uppercase' }}>
-                            {t.status.replace('_', ' ')}
-                          </span>
-                        </div>
-                        {hasIssue && (
-                          <TransferIssueInline transfer={t} onResolved={fetchTransfers} />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* ── Search card ── */}
       <div style={{ background: 'var(--bg-2)', border: '1px solid var(--bg-4)',
@@ -565,12 +460,6 @@ export default function AddStock() {
             adminRecord={adminRecord}
             onClose={() => setShowBillSubmit(false)}
             onSuccess={handleSubmitSuccess}
-          />
-        )}
-        {showTransfer && (
-          <CreateTransferModal
-            onClose={() => setShowTransfer(false)}
-            onSuccess={() => { setShowTransfer(false); fetchTransfers(); }}
           />
         )}
       </AnimatePresence>

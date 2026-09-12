@@ -262,12 +262,12 @@ export default function DevtaLogin({ onClose }) {
         }}>
 
           {/* Header */}
-          <div style={{ textAlign:'center', marginBottom:32 }}>
+          <div style={{ textAlign:'center', marginBottom:24 }}>
             <motion.div
               animate={{ y: [0, -6, 0] }}
               transition={{ duration:3, repeat:Infinity, ease:'easeInOut' }}
-              style={{ fontSize:60, marginBottom:12, display:'block', lineHeight:1 }}>
-              🌤️
+              style={{ marginBottom:2, display:'block', lineHeight:1 }}>
+              <img src="/logo.png" alt="Awasadhi Logo" style={{ width: 120, height: 120, objectFit: 'contain' }} />
             </motion.div>
             <div style={{ fontSize:22, fontWeight:800, color:'#01579B',
               letterSpacing:'-0.4px', marginBottom:5 }}>
@@ -275,11 +275,6 @@ export default function DevtaLogin({ onClose }) {
             </div>
             <div style={{ fontSize:13, color:'#4FC3F7', fontWeight:600 }}>
               Stock Verification &amp; Approval
-            </div>
-            <div style={{ marginTop:10, fontSize:11, color:'#0288D1',
-              background:'rgba(2,136,209,0.1)', borderRadius:20,
-              padding:'3px 12px', display:'inline-block', fontWeight:600 }}>
-              Press ⌘T / Ctrl+T to open
             </div>
           </div>
 
@@ -295,7 +290,7 @@ export default function DevtaLogin({ onClose }) {
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="devta@janswasthya.com"
+                placeholder="devta@awasadhi.com"
                 autoFocus
                 style={inputStyle(focusedField === 'email')}
                 onFocus={() => setFocusedField('email')}

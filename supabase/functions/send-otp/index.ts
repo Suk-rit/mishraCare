@@ -15,7 +15,7 @@ function buildOTPEmailHTML(otp: string, name: string): string {
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>MishraCare OTP</title>
+  <title>Awasadhi OTP</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     *{margin:0;padding:0;box-sizing:border-box}
@@ -54,13 +54,13 @@ function buildOTPEmailHTML(otp: string, name: string): string {
       <div class="header">
         <div class="logo-wrap">
           <div class="logo-icon">💊</div>
-          <div class="logo-text">Mishra<span>Care</span></div>
+          <div class="logo-text">Awasadhi</div>
           <div class="header-sub">Pharmacy ERP System</div>
         </div>
       </div>
       <div class="body">
         <div class="greeting">Hello, ${name} 👋</div>
-        <div class="message">We received a login request for your MishraCare account. Use the one-time password below to complete your verification.</div>
+        <div class="message">We received a login request for your Awasadhi account. Use the one-time password below to complete your verification.</div>
         <div class="otp-section">
           <div class="otp-label">Your One-Time Password</div>
           <div class="otp-code">
@@ -70,14 +70,14 @@ function buildOTPEmailHTML(otp: string, name: string): string {
         </div>
         <div class="warning">
           <div class="warning-icon">🔒</div>
-          <div class="warning-text"><strong>Never share this code</strong> with anyone. MishraCare staff will never ask for your OTP. If you did not request this, please ignore this email.</div>
+          <div class="warning-text"><strong>Never share this code</strong> with anyone. Awasadhi staff will never ask for your OTP. If you did not request this, please ignore this email.</div>
         </div>
         <div class="divider"></div>
         <div class="message" style="margin-bottom:0">Having trouble? Contact your system administrator.</div>
       </div>
       <div class="footer">
-        <div class="footer-brand">MishraCare Pharmacy ERP</div>
-        <div class="footer-text">This is an automated message — please do not reply.<br/>© ${new Date().getFullYear()} MishraCare. All rights reserved.</div>
+        <div class="footer-brand">Awasadhi Pharmacy ERP</div>
+        <div class="footer-text">This is an automated message — please do not reply.<br/>© ${new Date().getFullYear()} Awasadhi. All rights reserved.</div>
       </div>
     </div>
   </div>
@@ -110,9 +110,9 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'MishraCare <onboarding@resend.dev>',
+        from: 'Awasadhi <onboarding@resend.dev>',
         to: [email],
-        subject: `${otp} is your MishraCare login code`,
+        subject: `${otp} is your Awasadhi login code`,
         html,
       }),
     });

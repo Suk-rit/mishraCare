@@ -239,7 +239,7 @@ export function generatePurchaseOrderPDF({ bill, admin, devta, batches, printNow
     <div class="brand">
       <div class="brand-icon">💊</div>
       <div>
-        <div class="brand-name">JanSwasthya</div>
+        <div class="brand-name">Awasadhi</div>
         <div class="brand-sub">Pharmacy ERP · Purchase Order Bill</div>
       </div>
     </div>
@@ -368,7 +368,7 @@ export function generatePurchaseOrderPDF({ bill, admin, devta, batches, printNow
 
   <!-- Footer -->
   <div class="footer">
-    JanSwasthya Pharmacy ERP &nbsp;·&nbsp; ${bill.bill_number} &nbsp;·&nbsp;
+    Awasadhi Pharmacy ERP &nbsp;·&nbsp; ${bill.bill_number} &nbsp;·&nbsp;
     This document is for internal records only.
   </div>
 

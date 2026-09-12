@@ -100,6 +100,7 @@ export default function StoreManagerDashboard() {
     { id: 'billing',   icon: '🧾', label: 'Billing'                                                             },
     { id: 'analytics', icon: '📈', label: 'Analytics'                                                           },
     { id: 'inventory', icon: '📦', label: 'Inventory'                                                           },
+    { id: 'transfers', icon: '🚚', label: `Transfers${pendingTransfers > 0 ? ` (${pendingTransfers})` : ''}`         },
     { id: 'employees', icon: '👥', label: `My Team (${employees.filter(e=>e.status==='approved').length})`      },
     { id: 'requests',  icon: '📋', label: 'Stock Requests'                                                     },
     { id: 'it-support', icon: '💻', label: 'IT Support'                                                        },
@@ -329,7 +330,7 @@ export default function StoreManagerDashboard() {
               )}
 
               {/* STOCK TAB */}
-              {tab === 'request' && (
+              {tab === 'requests' && (
                 <motion.div key="req" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                   {managerData && storeData && (
                     <InventoryRequestTab

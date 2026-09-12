@@ -167,7 +167,7 @@ export default function AddManagerModal({ store, onClose, onSuccess }) {
           <div className="form-section">
             <div className="form-section-title">Login Credentials</div>
             <div className="form-grid">
-              <Field {...fp} name="email"    label="Email Address" required placeholder="manager@janswasthya.com" type="email" />
+              <Field {...fp} name="email"    label="Email Address" required placeholder="manager@awasadhi.com" type="email" />
               <Field {...fp} name="password" label="Password"      required placeholder="Set a strong password"  type="password" />
             </div>
           </div>

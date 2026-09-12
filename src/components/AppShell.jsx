@@ -16,7 +16,7 @@
  *   notifications — optional number badge on top bar
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { exitFullscreen, stopFullscreenGuard } from '../utils/fullscreen';
 
@@ -80,7 +80,7 @@ export default function AppShell({
   navItems = [],
   active,
   onNav,
-  title = 'JanSwasthya',
+  title = 'Awasadhi',
   userName = '',
   onLogout,
   children,
@@ -89,6 +89,7 @@ export default function AppShell({
   const theme = THEMES[role] || THEMES.admin;
   const [open, setOpen] = useState(false); // sidebar open/closed
   const initials = (userName || 'U').slice(0, 2).toUpperCase();
+  const mainRef = useRef(null);
 
   // Close sidebar on outside click (mobile)
   useEffect(() => {
@@ -101,6 +102,22 @@ export default function AppShell({
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, [open]);
+
+  // Scroll to top when active tab changes or on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
+  }, [active]);
+
+  // Also scroll to top on initial mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
+  }, []);
 
   return (
     <div style={{ minHeight:'100vh', background:'var(--bg)',
@@ -143,10 +160,10 @@ export default function AppShell({
 
         {/* Brand */}
         <div style={{ display:'flex', alignItems:'center', gap:8, flex:1 }}>
-          <span style={{ fontSize:20 }}>{theme.icon}</span>
+          <img src="/logo.png" alt="Awasadhi Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} />
           <span style={{ fontWeight:800, fontSize:15, color:'var(--label)',
             letterSpacing:'-0.3px' }}>
-            JanSwasthya
+            Awasadhi
           </span>
           <span style={{ fontSize:10, fontWeight:700, padding:'2px 9px',
             borderRadius:20, textTransform:'uppercase', letterSpacing:'0.5px',
@@ -278,8 +295,10 @@ export default function AppShell({
         </AnimatePresence>
 
         {/* Main content */}
-        <main style={{ flex:1, overflowY:'auto', overflowX:'hidden' }}>
-          {children}
+        <main ref={mainRef} style={{ flex:1, overflowY:'auto', overflowX:'hidden', scrollBehavior:'smooth' }}>
+          <div style={{ minHeight: '100%', padding: '0' }}>
+            {children}
+          </div>
         </main>
       </div>
     </div>
