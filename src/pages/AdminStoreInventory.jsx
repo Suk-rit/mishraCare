@@ -60,32 +60,45 @@ export default function AdminStoreInventory({ adminId, adminEmail }) {
   };
 
   const fetchCombinedInventory = async () => {
-    const [storeBatches, adminBatches] = await Promise.all([
+    const [{ data: storeInventory }, { data: adminBatches }, { data: medicines }] = await Promise.all([
+      supabase
+        .from('store_inventory')
+        .select('*')
+        .eq('store_id', selectedStore.id),
       supabase
         .from('medicine_batches')
-        .select('*, medicines(id, name, strength, type, manufacturer, pack_size, pack_unit)')
-        .eq('store_id', selectedStore.id)
-        .eq('status', 'approved')
-        .gt('units_remaining', 0),
+        .select('*')
+        .eq('admin_id', adminId),
       supabase
-        .from('medicine_batches')
-        .select('*, medicines(id, name, strength, type, manufacturer, pack_size, pack_unit)')
-        .eq('admin_id', adminId)
-        .is('store_id', null)
-        .eq('status', 'approved')
-        .gt('units_remaining', 0),
+        .from('medicines')
+        .select('*'),
     ]);
+
+    console.log('Store inventory:', storeInventory);
+    console.log('Admin batches:', adminBatches);
+    console.log('Medicines:', medicines);
+    console.log('Selected store:', selectedStore);
+    console.log('Admin ID:', adminId);
+
+    // Create medicine lookup map
+    const medicineMapById = new Map();
+    medicines?.forEach(m => medicineMapById.set(m.id, m));
+
+    // Filter admin batches (warehouse stock)
+    const filteredAdminBatches = adminBatches?.filter(b => b.units_remaining > 0 && b.status === 'approved') || [];
+
+    console.log('Filtered admin batches:', filteredAdminBatches);
 
     // Group by medicine
     const medicineMap = new Map();
-    
-    // Process store batches
-    storeBatches?.forEach(batch => {
-      const medId = batch.medicine_id;
+
+    // Process store inventory
+    storeInventory?.forEach(inv => {
+      const medId = inv.medicine_id;
       if (!medicineMap.has(medId)) {
         medicineMap.set(medId, {
           medicineId: medId,
-          medicine: batch.medicines,
+          medicine: medicineMapById.get(medId),
           storeBatches: [],
           adminBatches: [],
           totalStoreStock: 0,
@@ -93,17 +106,17 @@ export default function AdminStoreInventory({ adminId, adminEmail }) {
         });
       }
       const entry = medicineMap.get(medId);
-      entry.storeBatches.push(batch);
-      entry.totalStoreStock += batch.units_remaining;
+      entry.storeBatches.push(inv);
+      entry.totalStoreStock += inv.units_remaining;
     });
 
     // Process admin batches
-    adminBatches?.forEach(batch => {
+    filteredAdminBatches.forEach(batch => {
       const medId = batch.medicine_id;
       if (!medicineMap.has(medId)) {
         medicineMap.set(medId, {
           medicineId: medId,
-          medicine: batch.medicines,
+          medicine: medicineMapById.get(medId),
           storeBatches: [],
           adminBatches: [],
           totalStoreStock: 0,
