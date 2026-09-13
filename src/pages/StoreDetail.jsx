@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../utils/supabase';
-import AddManagerModal from '../components/AddManagerModal';
 import '../styles/stores.css';
 
 // ── Doc viewer helper ─────────────────────────────────────────────────────────
@@ -59,15 +58,11 @@ function SectionHeader({ title, count, action }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function StoreDetail({ store, onBack, onStatsRefresh }) {
-  const [tab,            setTab]           = useState('info');   // info | managers | employees
+  const [tab,            setTab]           = useState('managers');   // managers | employees
   const [managers,       setManagers]      = useState([]);
   const [employees,      setEmployees]     = useState([]);
   const [loading,        setLoading]       = useState(true);
-  const [showAddMgr,     setShowAddMgr]    = useState(false);
   const [expandEmployee, setExpandEmployee]= useState(null);
-  const [approving,      setApproving]     = useState(null);
-  const [noteInput,      setNoteInput]     = useState('');
-  const [showNoteFor,    setShowNoteFor]   = useState(null);
 
   useEffect(() => { fetchData(); }, [store.id]);
 
@@ -81,28 +76,6 @@ export default function StoreDetail({ store, onBack, onStatsRefresh }) {
     setEmployees(emps || []);
     setLoading(false);
   };
-
-  const handleApprove = async (emp) => {
-    setApproving(emp.id);
-    await supabase.from('employees').update({ status: 'approved', is_active: true, reviewed_at: new Date().toISOString(), admin_note: null }).eq('id', emp.id);
-    await fetchData();
-    onStatsRefresh?.();
-    setApproving(null);
-  };
-
-  const handleReject = async (emp) => {
-    setApproving(emp.id);
-    await supabase.from('employees').update({ status: 'rejected', is_active: false, reviewed_at: new Date().toISOString(), admin_note: noteInput || 'Rejected by admin' }).eq('id', emp.id);
-    await fetchData();
-    onStatsRefresh?.();
-    setApproving(null);
-    setShowNoteFor(null);
-    setNoteInput('');
-  };
-
-  const pending  = employees.filter(e => e.status === 'pending');
-  const approved = employees.filter(e => e.status === 'approved');
-  const rejected = employees.filter(e => e.status === 'rejected');
 
   return (
     <div style={{ padding: '28px', maxWidth: 1100, margin: '0 auto' }}>
@@ -143,11 +116,10 @@ export default function StoreDetail({ store, onBack, onStatsRefresh }) {
       <div style={{ display: 'flex', gap: 4, background: 'var(--bg-2)', border: '1px solid var(--bg-4)', borderRadius: 12, padding: 4, marginBottom: 22, width: 'fit-content', boxShadow: 'var(--shadow-sm)' }}>
         {[
           { id: 'managers',  label: `👤 Managers (${managers.length})` },
-          { id: 'employees', label: `👥 Employees (${approved.length})` },
-          { id: 'pending',   label: `⏳ Pending (${pending.length})`, alert: pending.length > 0 },
+          { id: 'employees', label: `👥 Employees (${employees.length})` },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding: '8px 18px', borderRadius: 9, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'all 0.18s', background: tab === t.id ? 'var(--bg-2)' : 'transparent', color: tab === t.id ? (t.alert ? '#FF9500' : 'var(--accent)') : 'var(--label-3)', boxShadow: tab === t.id ? 'var(--shadow-sm)' : 'none' }}>
+            style={{ padding: '8px 18px', borderRadius: 9, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'all 0.18s', background: tab === t.id ? 'var(--bg-2)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--label-3)', boxShadow: tab === t.id ? 'var(--shadow-sm)' : 'none' }}>
             {t.label}
           </button>
         ))}
@@ -160,8 +132,7 @@ export default function StoreDetail({ store, onBack, onStatsRefresh }) {
           {/* MANAGERS TAB */}
           {tab === 'managers' && (
             <motion.div key="mgr" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <SectionHeader title="Store Managers" count={managers.length}
-                action={<button onClick={() => setShowAddMgr(true)} style={{ background: 'linear-gradient(145deg,#FF3B30,#D93025)', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>+ Add Manager</button>} />
+              <SectionHeader title="Store Managers" count={managers.length} />
               {managers.length === 0 ? (
                 <div className="empty-state" style={{ padding: '40px 0' }}><div className="empty-state-icon">👤</div><div className="empty-state-title">No managers yet</div></div>
               ) : (
@@ -192,109 +163,18 @@ export default function StoreDetail({ store, onBack, onStatsRefresh }) {
           {/* EMPLOYEES TAB */}
           {tab === 'employees' && (
             <motion.div key="emp" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <SectionHeader title="Active Employees" count={approved.length} />
-              {approved.length === 0 ? (
-                <div className="empty-state" style={{ padding: '40px 0' }}><div className="empty-state-icon">👥</div><div className="empty-state-title">No approved employees yet</div><div className="empty-state-sub">Employees approved by admin will appear here</div></div>
+              <SectionHeader title="Employees" count={employees.length} />
+              {employees.length === 0 ? (
+                <div className="empty-state" style={{ padding: '40px 0' }}><div className="empty-state-icon">👥</div><div className="empty-state-title">No employees yet</div></div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {approved.map(e => <EmployeeRow key={e.id} emp={e} expanded={expandEmployee === e.id} onToggle={() => setExpandEmployee(expandEmployee === e.id ? null : e.id)} />)}
-                </div>
-              )}
-              {rejected.length > 0 && (
-                <div style={{ marginTop: 28 }}>
-                  <SectionHeader title="Rejected Requests" count={rejected.length} />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {rejected.map(e => <EmployeeRow key={e.id} emp={e} expanded={expandEmployee === e.id} onToggle={() => setExpandEmployee(expandEmployee === e.id ? null : e.id)} />)}
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {/* PENDING TAB */}
-          {tab === 'pending' && (
-            <motion.div key="pend" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <SectionHeader title="Pending Approval Requests" count={pending.length} />
-              {pending.length === 0 ? (
-                <div className="empty-state" style={{ padding: '40px 0' }}><div className="empty-state-icon">✅</div><div className="empty-state-title">All caught up!</div><div className="empty-state-sub">No pending employee requests</div></div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {pending.map(e => (
-                    <div key={e.id} style={{ background: 'var(--bg-2)', border: '1px solid #FDE68A', borderRadius: 'var(--radius-lg)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
-                      {/* Header */}
-                      <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14, borderBottom: '1px solid var(--bg-4)' }}>
-                        <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg,#FF9500,#CC7A00)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{e.full_name.slice(0,2).toUpperCase()}</div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--label)' }}>{e.full_name}</div>
-                          <div style={{ fontSize: 12, color: 'var(--label-4)', marginTop: 2 }}>Submitted by: {e.store_managers?.full_name || 'Store Manager'} · {new Date(e.created_at).toLocaleDateString('en-IN')}</div>
-                        </div>
-                        <StatusBadge status={e.status} />
-                      </div>
-                      {/* Details grid */}
-                      <div style={{ padding: '16px 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(170px,1fr))', gap: 14 }}>
-                        <InfoCell label="Phone"       value={e.phone} />
-                        <InfoCell label="Designation" value={e.designation} />
-                        <InfoCell label="Employment"  value={e.employment_type?.replace('_',' ')} />
-                        <InfoCell label="Salary"      value={e.salary ? `₹${Number(e.salary).toLocaleString()}/${e.salary_type === 'monthly' ? 'mo' : 'wk'}` : null} />
-                        <InfoCell label="Shift"       value={e.shift} />
-                        <InfoCell label="Joining"     value={e.joining_date ? new Date(e.joining_date).toLocaleDateString('en-IN') : null} />
-                        {e.aadhar_number && <InfoCell label="Aadhar" value={`•••• ${e.aadhar_number.slice(-4)}`} />}
-                        {e.address && <InfoCell label="Address" value={`${e.address}, ${e.city}`} />}
-                      </div>
-                      {/* Documents */}
-                      <div style={{ padding: '0 20px 16px' }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--label-4)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8 }}>Uploaded Documents</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                          <DocLink url={e.photo_url}      label="Profile Photo" />
-                          <DocLink url={e.aadhar_photo_url} label="Aadhar Card" />
-                          <DocLink url={e.id_proof_url}   label="ID Proof" />
-                          <DocLink url={e.other_doc_url}  label="Other Doc" />
-                        </div>
-                      </div>
-                      {/* Rejection note input */}
-                      {showNoteFor === e.id && (
-                        <div style={{ padding: '0 20px 16px' }}>
-                          <textarea placeholder="Reason for rejection (optional)" value={noteInput} onChange={ev => setNoteInput(ev.target.value)}
-                            style={{ width: '100%', padding: '10px 13px', borderRadius: 10, border: '1.5px solid #FECACA', background: '#FFF1F0', color: 'var(--label)', fontFamily: 'inherit', fontSize: 13, outline: 'none', resize: 'vertical', minHeight: 70 }} />
-                        </div>
-                      )}
-                      {/* Actions */}
-                      <div style={{ padding: '14px 20px', background: 'var(--bg-3)', borderTop: '1px solid var(--bg-4)', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                        {showNoteFor === e.id ? (
-                          <>
-                            <button onClick={() => { setShowNoteFor(null); setNoteInput(''); }}
-                              style={{ background: 'var(--bg-2)', border: '1px solid var(--bg-4)', color: 'var(--label-3)', padding: '8px 18px', borderRadius: 8, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>Cancel</button>
-                            <button onClick={() => handleReject(e)} disabled={approving === e.id}
-                              style={{ background: '#B91C1C', color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 8, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
-                              {approving === e.id ? 'Rejecting...' : 'Confirm Reject'}
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button onClick={() => { setShowNoteFor(e.id); setNoteInput(''); }}
-                              style={{ background: '#FEE2E2', color: '#B91C1C', border: '1px solid #FECACA', padding: '8px 18px', borderRadius: 8, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>Reject</button>
-                            <button onClick={() => handleApprove(e)} disabled={approving === e.id}
-                              style={{ background: 'linear-gradient(145deg,#34C759,#28A745)', color: '#fff', border: 'none', padding: '8px 22px', borderRadius: 8, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, boxShadow: '0 2px 8px rgba(52,199,89,0.3)' }}>
-                              {approving === e.id ? '⏳ Approving...' : '✓ Approve'}
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                  {employees.map(e => <EmployeeRow key={e.id} emp={e} expanded={expandEmployee === e.id} onToggle={() => setExpandEmployee(expandEmployee === e.id ? null : e.id)} />)}
                 </div>
               )}
             </motion.div>
           )}
         </AnimatePresence>
       )}
-
-      {/* Add Manager modal */}
-      <AnimatePresence>
-        {showAddMgr && (
-          <AddManagerModal store={store} onClose={() => setShowAddMgr(false)} onSuccess={() => { setShowAddMgr(false); fetchData(); }} />
-        )}
-      </AnimatePresence>
     </div>
   );
 }

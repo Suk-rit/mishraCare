@@ -8,6 +8,7 @@ import StoreTransfers   from './StoreTransfers';
 import BillingPage      from './BillingPage';
 import StoreAnalytics   from './StoreAnalytics';
 import InventoryRequestTab from './InventoryRequestTab';
+import ReturnBills      from './ReturnBills';
 import RefreshButton    from '../components/RefreshButton';
 import AppShell         from '../components/AppShell';
 import ITSupport        from '../components/ITSupport';
@@ -36,10 +37,12 @@ export default function StoreManagerDashboard() {
   const [employees,    setEmployees]    = useState([]);
   const [storeInv,     setStoreInv]     = useState([]);
   const [pendingTransfers, setPendingTransfers] = useState(0);
-  const [loading,      setLoading]      = useState(true);
-  const [showAddEmp,   setShowAddEmp]   = useState(false);
+  const [showAddEmp, setShowAddEmp] = useState(false);
+  const [empView, setEmpView] = useState('active');
+  const [invSearchQuery, setInvSearchQuery] = useState('');
+  const [expandedMedicines, setExpandedMedicines] = useState(new Set());
   const [tab,          setTab]          = useState('overview');
-  const [empView,      setEmpView]      = useState('active'); // 'active' or 'inactive'
+  const [loading,      setLoading]      = useState(true);
 
   useEffect(() => {
     if (!session || session.role !== 'store_manager') {
@@ -101,6 +104,7 @@ export default function StoreManagerDashboard() {
     { id: 'analytics', icon: '📈', label: 'Analytics'                                                           },
     { id: 'inventory', icon: '📦', label: 'Inventory'                                                           },
     { id: 'transfers', icon: '🚚', label: `Transfers${pendingTransfers > 0 ? ` (${pendingTransfers})` : ''}`         },
+    { id: 'returns',   icon: '🔄', label: 'Returns'                                                             },
     { id: 'employees', icon: '👥', label: `My Team (${employees.filter(e=>e.status==='approved').length})`      },
     { id: 'requests',  icon: '📋', label: 'Stock Requests'                                                     },
     { id: 'it-support', icon: '💻', label: 'IT Support'                                                        },
@@ -315,6 +319,13 @@ export default function StoreManagerDashboard() {
                 </motion.div>
               )}
 
+              {/* RETURNS TAB */}
+              {tab === 'returns' && (
+                <motion.div key="ret" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                  {storeData && <ReturnBills storeId={storeData.id} storeName={storeData.store_name} />}
+                </motion.div>
+              )}
+
               {/* STOCK TAB */}
               {tab === 'requests' && (
                 <motion.div key="req" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
@@ -331,10 +342,29 @@ export default function StoreManagerDashboard() {
               {/* STOCK TAB */}
               {tab === 'inventory' && (
                 <motion.div key="sk" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-                  <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16 }}>
+                  <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,flexWrap:'wrap',gap:12 }}>
                     <div style={{ fontSize:15,fontWeight:700,color:'var(--label)' }}>My Store Inventory</div>
                     <div style={{ fontSize:12,color:'var(--label-4)' }}>Sorted by earliest expiry first (FEFO)</div>
                   </div>
+
+                  <div style={{ marginBottom: 16 }}>
+                    <input
+                      type="text"
+                      placeholder="Search medicines..."
+                      value={invSearchQuery}
+                      onChange={(e) => setInvSearchQuery(e.target.value)}
+                      style={{
+                        width: '100%',
+                        maxWidth: 400,
+                        padding: '10px 16px',
+                        border: '1px solid var(--bg-4)',
+                        borderRadius: 8,
+                        fontSize: 13,
+                        fontFamily: 'inherit',
+                      }}
+                    />
+                  </div>
+
                   {storeInv.length === 0 ? (
                     <div style={{ textAlign:'center',padding:'60px 20px',background:'var(--bg-2)',borderRadius:'var(--radius-lg)',border:'1px solid var(--bg-4)' }}>
                       <div style={{ fontSize:40,opacity:0.2,marginBottom:12 }}>🏪</div>
@@ -343,45 +373,114 @@ export default function StoreManagerDashboard() {
                     </div>
                   ) : (
                     <div style={{ display:'flex',flexDirection:'column',gap:10 }}>
-                      {storeInv.map(inv => {
-                        const med  = inv.medicines;
-                        const d    = Math.ceil((new Date(inv.expiry_date) - new Date()) / 86400000);
-                        const pct  = inv.units_received > 0 ? Math.round((inv.units_remaining/inv.units_received)*100) : 0;
-                        const barC = pct > 50 ? '#34C759' : pct > 20 ? '#FF9500' : '#FF3B30';
-                        const expS = d < 0 ? { bg:'#FEE2E2',color:'#B91C1C' } : d < 90 ? { bg:'#FEF3C7',color:'#92400E' } : d < 180 ? { bg:'#E0F2FE',color:'#0369A1' } : { bg:'#DCFCE7',color:'#15803D' };
-                        return (
-                          <div key={inv.id} style={{ background:'var(--bg-2)',border:'1px solid var(--bg-4)',borderRadius:'var(--radius-md)',overflow:'hidden',boxShadow:'var(--shadow-sm)' }}>
-                            <div style={{ padding:'13px 16px',display:'flex',alignItems:'center',gap:12 }}>
-                              <div style={{ flex:1 }}>
-                                <div style={{ fontSize:14,fontWeight:700,color:'var(--label)',marginBottom:3 }}>
-                                  {med?.name}{med?.strength ? ` · ${med.strength}` : ''}
+                      {(() => {
+                        // Group inventory by medicine
+                        const groupedInv = {};
+                        storeInv.forEach(inv => {
+                          const medId = inv.medicine_id;
+                          if (!groupedInv[medId]) {
+                            groupedInv[medId] = {
+                              medicine: inv.medicines,
+                              batches: [],
+                              totalUnits: 0,
+                              totalReceived: 0,
+                            };
+                          }
+                          groupedInv[medId].batches.push(inv);
+                          groupedInv[medId].totalUnits += inv.units_remaining;
+                          groupedInv[medId].totalReceived += inv.units_received;
+                        });
+
+                        // Filter by search query
+                        const filteredGroups = Object.entries(groupedInv).filter(([medId, data]) => {
+                          if (!invSearchQuery) return true;
+                          const searchLower = invSearchQuery.toLowerCase();
+                          return data.medicine?.name?.toLowerCase().includes(searchLower) ||
+                                 data.medicine?.strength?.toLowerCase().includes(searchLower) ||
+                                 data.batches.some(b => b.batch_number?.toLowerCase().includes(searchLower));
+                        });
+
+                        return filteredGroups.map(([medId, data]) => {
+                          const med = data.medicine;
+                          const totalPct = data.totalReceived > 0 ? Math.round((data.totalUnits/data.totalReceived)*100) : 0;
+                          const barC = totalPct > 50 ? '#34C759' : totalPct > 20 ? '#FF9500' : '#FF3B30';
+                          const isExpanded = expandedMedicines.has(medId);
+
+                          return (
+                            <div key={medId} style={{ background:'var(--bg-2)',border:'1px solid var(--bg-4)',borderRadius:'var(--radius-md)',overflow:'hidden',boxShadow:'var(--shadow-sm)' }}>
+                              <div
+                                onClick={() => {
+                                  const newExpanded = new Set(expandedMedicines);
+                                  if (newExpanded.has(medId)) {
+                                    newExpanded.delete(medId);
+                                  } else {
+                                    newExpanded.add(medId);
+                                  }
+                                  setExpandedMedicines(newExpanded);
+                                }}
+                                style={{ padding:'13px 16px',display:'flex',alignItems:'center',gap:12,cursor:'pointer',transition:'background 0.2s' }}
+                                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-3)'}
+                                onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-2)'}
+                              >
+                                <div style={{ flex:1 }}>
+                                  <div style={{ fontSize:14,fontWeight:700,color:'var(--label)',marginBottom:3 }}>
+                                    {med?.name}{med?.strength ? ` · ${med.strength}` : ''}
+                                  </div>
+                                  <div style={{ fontSize:11,color:'var(--label-4)' }}>
+                                    {data.batches.length} batch{data.batches.length > 1 ? 'es' : ''} · {med?.type}
+                                  </div>
                                 </div>
-                                <div style={{ display:'flex',gap:8,flexWrap:'wrap',alignItems:'center' }}>
-                                  <span style={{ fontSize:11,fontFamily:'monospace',color:'var(--label-3)',fontWeight:600 }}>{inv.batch_number}</span>
-                                  <span style={{ fontSize:11,fontWeight:600,padding:'2px 8px',borderRadius:20,background:expS.bg,color:expS.color }}>
-                                    Exp: {new Date(inv.expiry_date).toLocaleDateString('en-IN')}
-                                    {d >= 0 ? ` · ${d}d left` : ' · EXPIRED'}
-                                  </span>
-                                  {inv.date_of_manufacture && <span style={{ fontSize:11,color:'var(--label-4)' }}>DOM: {new Date(inv.date_of_manufacture).toLocaleDateString('en-IN')}</span>}
+                                <div style={{ textAlign:'right',flexShrink:0 }}>
+                                  <div style={{ fontSize:18,fontWeight:800,color:barC }}>{data.totalUnits}</div>
+                                  <div style={{ fontSize:10,color:'var(--label-4)' }}>total units</div>
                                 </div>
-                                <div style={{ fontSize:11,color:'var(--label-4)',marginTop:2 }}>
-                                  {med?.pack_size} {med?.pack_unit}/pack · MRP ₹{Number(inv.mrp_per_pack||0).toFixed(2)}/pack
+                                <div style={{ fontSize:18,color:'var(--label-4)',transition:'transform 0.2s',transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                                  ▼
                                 </div>
                               </div>
-                              <div style={{ textAlign:'right',flexShrink:0 }}>
-                                <div style={{ fontSize:18,fontWeight:800,color:barC }}>{inv.units_remaining}</div>
-                                <div style={{ fontSize:10,color:'var(--label-4)' }}>of {inv.units_received} units</div>
-                                <div style={{ fontSize:11,color:'var(--label-4)',marginTop:1 }}>
-                                  {Math.floor(inv.units_remaining/(med?.pack_size||1))} packs + {inv.units_remaining%(med?.pack_size||1)} loose
-                                </div>
+                              <div style={{ height:3,background:'var(--bg-4)' }}>
+                                <div style={{ height:'100%',width:`${totalPct}%`,background:barC,transition:'width 0.5s' }} />
                               </div>
+
+                              {isExpanded && (
+                                <div style={{ borderTop:'1px solid var(--bg-4)',background:'var(--bg-1)' }}>
+                                  {data.batches.map(inv => {
+                                    const d = Math.ceil((new Date(inv.expiry_date) - new Date()) / 86400000);
+                                    const pct = inv.units_received > 0 ? Math.round((inv.units_remaining/inv.units_received)*100) : 0;
+                                    const expS = d < 0 ? { bg:'#FEE2E2',color:'#B91C1C' } : d < 90 ? { bg:'#FEF3C7',color:'#92400E' } : d < 180 ? { bg:'#E0F2FE',color:'#0369A1' } : { bg:'#DCFCE7',color:'#15803D' };
+                                    return (
+                                      <div key={inv.id} style={{ padding:'12px 16px',borderBottom:'1px solid var(--bg-3)',display:'flex',alignItems:'center',gap:12 }}>
+                                        <div style={{ flex:1 }}>
+                                          <div style={{ fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:4 }}>
+                                            Batch: {inv.batch_number}
+                                          </div>
+                                          <div style={{ display:'flex',gap:8,flexWrap:'wrap',alignItems:'center' }}>
+                                            <span style={{ fontSize:11,fontWeight:600,padding:'2px 8px',borderRadius:20,background:expS.bg,color:expS.color }}>
+                                              Exp: {new Date(inv.expiry_date).toLocaleDateString('en-IN')}
+                                              {d >= 0 ? ` · ${d}d left` : ' · EXPIRED'}
+                                            </span>
+                                            {inv.date_of_manufacture && <span style={{ fontSize:11,color:'var(--label-4)' }}>DOM: {new Date(inv.date_of_manufacture).toLocaleDateString('en-IN')}</span>}
+                                          </div>
+                                          <div style={{ fontSize:11,color:'var(--label-4)',marginTop:2 }}>
+                                            {med?.pack_size} {med?.pack_unit}/pack · MRP ₹{Number(inv.mrp_per_pack||0).toFixed(2)}/pack
+                                          </div>
+                                        </div>
+                                        <div style={{ textAlign:'right',flexShrink:0 }}>
+                                          <div style={{ fontSize:16,fontWeight:700,color:barC }}>{inv.units_remaining}</div>
+                                          <div style={{ fontSize:10,color:'var(--label-4)' }}>of {inv.units_received} units</div>
+                                          <div style={{ fontSize:10,color:'var(--label-4)',marginTop:1 }}>
+                                            {Math.floor(inv.units_remaining/(med?.pack_size||1))} packs + {inv.units_remaining%(med?.pack_size||1)} loose
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </div>
-                            <div style={{ height:3,background:'var(--bg-4)' }}>
-                              <div style={{ height:'100%',width:`${pct}%`,background:barC,transition:'width 0.5s' }} />
-                            </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        });
+                      })()}
                     </div>
                   )}
                 </motion.div>

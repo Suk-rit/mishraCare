@@ -47,10 +47,11 @@ function VishnuAnalytics({ admins, storesMap }) {
       { data: storeExp },
       { data: adminExp },
       { data: devtaExp },
+      { data: returns },
     ] = await Promise.all([
       supabase.from('bills')
         .select('id, store_id, total_amount, cash_amount, card_amount, upi_amount, created_at')
-        .eq('status', 'paid')
+        .in('status', ['paid', 'refunded'])
         .gte('created_at', start)
         .lte('created_at', end),
       supabase.from('expenses')
@@ -69,21 +70,41 @@ function VishnuAnalytics({ admins, storesMap }) {
         .select('amount, description, expense_date, category, payment_method, proof_url')
         .gte('expense_date', dateStr)
         .lte('expense_date', endStr),
+      supabase.from('bill_returns')
+        .select('bill_id, refund_amount, return_date')
+        .gte('return_date', start)
+        .lte('return_date', end),
     ]);
 
     const allBills    = bills    || [];
     const allStoreExp = storeExp || [];
     const allAdminExp = adminExp || [];
     const allDevtaExp = devtaExp || [];
+    const allReturns  = returns  || [];
 
     // Save devta expenses for display
     setDevtaExpList(allDevtaExp);
 
+    // Create refund map
+    const refundMap = {};
+    allReturns.forEach(r => {
+      refundMap[r.bill_id] = (refundMap[r.bill_id] || 0) + parseFloat(r.refund_amount || 0);
+    });
+
+    // Adjust bill totals by subtracting refunds
+    const adjustedBills = allBills.map(bill => ({
+      ...bill,
+      total_amount: Math.max(0, parseFloat(bill.total_amount || 0) - (refundMap[bill.id] || 0)),
+      cash_amount: Math.max(0, parseFloat(bill.cash_amount || 0) - (refundMap[bill.id] || 0)),
+      card_amount: Math.max(0, parseFloat(bill.card_amount || 0)),
+      upi_amount: Math.max(0, parseFloat(bill.upi_amount || 0)),
+    }));
+
     // Chain totals
-    const totalSales = allBills.reduce((s, b) => s + parseFloat(b.total_amount || 0), 0);
+    const totalSales = adjustedBills.reduce((s, b) => s + parseFloat(b.total_amount || 0), 0);
     const totalExp   = [...allStoreExp, ...allAdminExp, ...allDevtaExp].reduce((s, e) => s + parseFloat(e.amount || 0), 0);
     setChainSales(totalSales);
-    setChainBills(allBills.length);
+    setChainBills(adjustedBills.length);
     setChainExpenses(totalExp);
 
     // Build per-admin rollup
@@ -93,7 +114,7 @@ function VishnuAnalytics({ admins, storesMap }) {
       const storeIds = stores.map(s => s.id);
 
       // Bills for this admin's stores
-      const adminBills = allBills.filter(b => storeIds.includes(b.store_id));
+      const adminBills = adjustedBills.filter(b => storeIds.includes(b.store_id));
       const adminRevenue = adminBills.reduce((s, b) => s + parseFloat(b.total_amount || 0), 0);
       const adminCash    = adminBills.reduce((s, b) => s + parseFloat(b.cash_amount  || 0), 0);
       const adminUPI     = adminBills.reduce((s, b) => s + parseFloat(b.upi_amount   || 0), 0);

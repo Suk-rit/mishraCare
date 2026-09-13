@@ -24,11 +24,33 @@ export async function fetchStoreSales(storeId, period) {
     .from('bills')
     .select('id, total_amount, total_cost, gross_profit, discount_amount, tax_amount, created_at, status')
     .eq('store_id', storeId)
-    .eq('status', 'paid')
+    .in('status', ['paid', 'refunded'])
     .gte('created_at', start)
     .lte('created_at', end)
     .order('created_at');
-  return bills || [];
+
+  // Fetch returns for this store in the same period
+  const { data: returns } = await supabase
+    .from('bill_returns')
+    .select('bill_id, refund_amount, refund_includes_gst, return_date')
+    .eq('store_id', storeId)
+    .gte('return_date', start)
+    .lte('return_date', end);
+
+  // Create a map of bill_id to refund amount
+  const refundMap = {};
+  (returns || []).forEach(r => {
+    refundMap[r.bill_id] = (refundMap[r.bill_id] || 0) + parseFloat(r.refund_amount || 0);
+  });
+
+  // Subtract refunds from bill totals
+  const adjustedBills = (bills || []).map(bill => ({
+    ...bill,
+    total_amount: Math.max(0, parseFloat(bill.total_amount || 0) - (refundMap[bill.id] || 0)),
+    gross_profit: Math.max(0, parseFloat(bill.gross_profit || 0) - (refundMap[bill.id] || 0)),
+  }));
+
+  return adjustedBills;
 }
 
 // ── Fetch bill items for top medicines ────────────────────────────────────────
