@@ -152,6 +152,9 @@ function printBill({ bill, items, customer, doctor, store, payments }) {
 
 <div class="footer">
   Thank you for choosing Awasadhi Pharmacy · This is a computer-generated bill · ${bill.bill_number}
+  <div style="margin-top:8px;font-weight:700;color:#333">
+    Bill required for return · Return policy for 7 days · Always take bill
+  </div>
 </div>
 
 <script>window.onload=function(){setTimeout(function(){window.print();},400);};<\/script>
